@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo } from 'react';
 import {
+    DimensionValue,
     Dimensions,
     ScrollView,
     StatusBar,
@@ -204,7 +205,7 @@ export default function StatisticsScreen({ onClose }: StatisticsScreenProps) {
                   <View 
                     style={[
                       styles.trendBar,
-                      { width: `${getPercentage(item.total, stats.byMonth[0].total)}%` }
+                      { width: `${getPercentage(item.total, stats.byMonth[0].total)}%` as DimensionValue }
                     ]}
                   />
                 </View>

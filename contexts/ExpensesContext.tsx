@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { StorageService } from '../services/storage';
 
 export interface Expense {
   id: string;
@@ -9,6 +9,7 @@ export interface Expense {
   date: Date;
   tags: string[];
   paid: boolean;
+  source?: 'manual' | 'notification' | 'import';
 }
 
 interface ExpensesContextData {
@@ -22,8 +23,6 @@ interface ExpensesContextData {
 
 const ExpensesContext = createContext<ExpensesContextData>({} as ExpensesContextData);
 
-const STORAGE_KEY = '@cashya:expenses';
-
 interface ExpensesProviderProps {
   children: ReactNode;
 }
@@ -32,23 +31,14 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load expenses from AsyncStorage on mount
   useEffect(() => {
     loadExpenses();
   }, []);
 
   const loadExpenses = async () => {
     try {
-      const expensesJSON = await AsyncStorage.getItem(STORAGE_KEY);
-      if (expensesJSON) {
-        const expensesParsed = JSON.parse(expensesJSON);
-        // Convert date strings back to Date objects
-        const expensesWithDates = expensesParsed.map((e: any) => ({
-          ...e,
-          date: new Date(e.date),
-        }));
-        setExpenses(expensesWithDates);
-      }
+      const data = await StorageService.getExpenses();
+      setExpenses(data);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -56,9 +46,9 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
     }
   };
 
-  const saveExpenses = async (newExpenses: Expense[]) => {
+  const saveAndSetExpenses = async (newExpenses: Expense[]) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newExpenses));
+      await StorageService.saveExpenses(newExpenses);
       setExpenses(newExpenses);
     } catch (error) {
       console.error('Error saving expenses:', error);
@@ -68,29 +58,29 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
   const addExpense = async (expense: Omit<Expense, 'id'>) => {
     const newExpense: Expense = {
       ...expense,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
     };
-    const newExpenses = [...expenses, newExpense];
-    await saveExpenses(newExpenses);
+    const newExpenses = [newExpense, ...expenses];
+    await saveAndSetExpenses(newExpenses);
   };
 
   const editExpense = async (id: string, updatedExpense: Partial<Expense>) => {
     const newExpenses = expenses.map((e) =>
       e.id === id ? { ...e, ...updatedExpense } : e
     );
-    await saveExpenses(newExpenses);
+    await saveAndSetExpenses(newExpenses);
   };
 
   const removeExpense = async (id: string) => {
     const newExpenses = expenses.filter((e) => e.id !== id);
-    await saveExpenses(newExpenses);
+    await saveAndSetExpenses(newExpenses);
   };
 
   const togglePaid = async (id: string) => {
     const newExpenses = expenses.map((e) =>
       e.id === id ? { ...e, paid: !e.paid } : e
     );
-    await saveExpenses(newExpenses);
+    await saveAndSetExpenses(newExpenses);
   };
 
   return (
