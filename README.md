@@ -197,12 +197,12 @@ Antes de iniciar, certifique-se de ter instalado em sua máquina:
 
 ### Instalação
 
-1. Clone este repositório:
+1. Clone este repositório (caso ainda não tenha clonado):
    ```bash
    git clone https://github.com/yanjuca/Cashya.git
    ```
 
-2. Acesse a pasta do projeto:
+2. Acesse a pasta da aplicação:
    ```bash
    cd Cashya/Cashya
    ```
