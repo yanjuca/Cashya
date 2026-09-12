@@ -72,7 +72,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
       Alert.alert('Success', 'Expense updated successfully!', [
         { text: 'OK', onPress: onClose }
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to update expense');
     }
   };
@@ -146,7 +146,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Amount</Text>
           <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>$</Text>
+            <Text style={styles.currencySymbol}>R$</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0.00"

@@ -45,4 +45,24 @@ export const StorageService = {
       console.error('Error saving last active timestamp:', error);
     }
   },
+
+  async getCards(): Promise<any[]> {
+    try {
+      const data = await AsyncStorage.getItem('@cashya:cards');
+      if (!data) return [];
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error reading cards from storage:', error);
+      return [];
+    }
+  },
+
+  async saveCards(cards: any[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem('@cashya:cards', JSON.stringify(cards));
+    } catch (error) {
+      console.error('Error saving cards to storage:', error);
+      throw error;
+    }
+  },
 };

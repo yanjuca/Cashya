@@ -72,7 +72,7 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
       Alert.alert('Success', 'Expense added successfully!', [
         { text: 'OK', onPress: onClose }
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to save expense');
     }
   };
@@ -124,7 +124,7 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Amount</Text>
           <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>$</Text>
+            <Text style={styles.currencySymbol}>R$</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0.00"
