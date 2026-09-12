@@ -10,6 +10,7 @@ export interface Expense {
   tags: string[];
   paid: boolean;
   source?: 'manual' | 'notification' | 'import';
+  cardId?: string;
 }
 
 interface ExpensesContextData {

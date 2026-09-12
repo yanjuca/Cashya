@@ -2,28 +2,34 @@
 
 export const COLORS = {
   // Main colors
-  background: '#1a1a1a',
-  backgroundGradientStart: '#2a1a1a', // Dark red tint
-  backgroundGradientEnd: '#1a1a1a',   // Pure dark
-  cardBackground: '#2a2a2a',
-  primary: '#ff5252',
+  background: '#000000',
+  backgroundGradientStart: '#140708', // Subtle dark red tint
+  backgroundGradientEnd: '#000000',   // Pure OLED black
+  cardBackground: '#18181c',
+  cardBackgroundLight: '#202026',
+  primary: '#ff453a',
   primaryDark: '#d32f2f',
+  primaryMuted: 'rgba(255, 69, 58, 0.15)',
   
   // Text colors
   text: '#ffffff',
-  textSecondary: '#999999',
+  textSecondary: '#8a8a93',
+  textMuted: '#55555c',
   
   // UI colors
-  border: '#3a3a3a',
-  success: '#4caf50',
-  warning: '#ff9800',
-  error: '#ff5252',
+  border: '#24242a',
+  borderLight: '#32323a',
+  success: '#30d158',
+  warning: '#ffd60a',
+  error: '#ff453a',
+  chip: '#e5b842',
+  badgeBackground: '#1d1d22',
 };
 
 export const FONTS = {
-  ndot: 'Ndot57',           // For app name and special text
-  ndotCaps: 'Ndot57Caps',   // For headings
-  system: 'System',         // Fallback to system (like Times)
+  ndot: 'Ndot57',           // For app name, numbers, amounts
+  ndotCaps: 'Ndot57Caps',   // For headings and labels
+  system: 'System',         // Fallback to system
 };
 
 export const SPACING = {
@@ -33,23 +39,27 @@ export const SPACING = {
   lg: 16,
   xl: 20,
   xxl: 24,
+  xxxl: 32,
 };
 
 export const BORDER_RADIUS = {
+  xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
+  xxl: 24,
   full: 9999,
 };
 
 export const FONT_SIZES = {
   xs: 11,
   sm: 13,
-  md: 16,
+  md: 15,
   lg: 18,
-  xl: 24,
-  xxl: 32,
+  xl: 22,
+  xxl: 28,
+  xxxl: 34,
 };
 
 // Use this in your components:

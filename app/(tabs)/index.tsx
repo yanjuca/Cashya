@@ -1,5 +1,5 @@
-import HomeScreen from '../../components/screens/HomeScreen';
+import WalletHomeScreen from '../../components/screens/WalletHomeScreen';
 
 export default function Index() {
-  return <HomeScreen />;
+  return <WalletHomeScreen />;
 }
