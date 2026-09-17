@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.database import create_tables
-from app.routers import ai, auth, budgets, categories, expenses, statistics, transactions
+from app.routers import auth, budgets, categories, expenses, statistics, transactions
 
 
 @asynccontextmanager
@@ -85,7 +85,7 @@ async def security_middleware(request: Request, call_next) -> Response:
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    response.headers["Cache-Control"] = "no-store" if request.url.path.startswith(("/auth", "/transactions", "/expenses", "/sync", "/inbox", "/statistics", "/budgets", "/categories", "/ai")) else "no-cache"
+    response.headers["Cache-Control"] = "no-store" if request.url.path.startswith(("/auth", "/transactions", "/expenses", "/sync", "/inbox", "/statistics", "/budgets", "/categories")) else "no-cache"
     return response
 
 
@@ -104,7 +104,6 @@ app.include_router(expenses.spec_router, tags=["sync", "inbox"])
 app.include_router(categories.router, prefix="/categories", tags=["categories"])
 app.include_router(budgets.router, prefix="/budgets", tags=["budgets"])
 app.include_router(statistics.router, prefix="/statistics", tags=["statistics"])
-app.include_router(ai.router, prefix="/ai", tags=["ai"])
 
 
 @app.get("/", tags=["health"])
