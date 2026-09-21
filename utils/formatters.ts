@@ -1,9 +1,9 @@
 /**
- * Utilitários de formatação de valores monetários e datas
+ * Currency and date formatting utilities
  */
 
-export function formatCurrency(amount: number, currencySymbol: string = 'R$'): string {
-  const formatted = amount.toLocaleString('pt-BR', {
+export function formatCurrency(amount: number, currencySymbol: string = '$'): string {
+  const formatted = amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -11,7 +11,7 @@ export function formatCurrency(amount: number, currencySymbol: string = 'R$'): s
 }
 
 export function formatMonthYear(date: Date): string {
-  const formatted = date.toLocaleDateString('pt-BR', {
+  const formatted = date.toLocaleDateString('en-US', {
     month: 'short',
     year: 'numeric',
   });
@@ -19,9 +19,9 @@ export function formatMonthYear(date: Date): string {
 }
 
 export function formatDate(date: Date): string {
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
+  return date.toLocaleDateString('en-US', {
     month: '2-digit',
+    day: '2-digit',
     year: 'numeric',
   });
 }
