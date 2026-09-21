@@ -1,17 +1,8 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { StorageService } from '../services/storage';
+import { Expense } from '../types';
 
-export interface Expense {
-  id: string;
-  description: string;
-  amount: number;
-  person: string;
-  date: Date;
-  tags: string[];
-  paid: boolean;
-  source?: 'manual' | 'notification' | 'import';
-  cardId?: string;
-}
+export { Expense };
 
 interface ExpensesContextData {
   expenses: Expense[];
@@ -19,6 +10,8 @@ interface ExpensesContextData {
   editExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   removeExpense: (id: string) => Promise<void>;
   togglePaid: (id: string) => Promise<void>;
+  reloadExpenses: () => Promise<void>;
+  resetExpenses: (newExpenses: Expense[]) => Promise<void>;
   loading: boolean;
 }
 
@@ -84,6 +77,14 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
     await saveAndSetExpenses(newExpenses);
   };
 
+  const reloadExpenses = async () => {
+    await loadExpenses();
+  };
+
+  const resetExpenses = async (newExpenses: Expense[]) => {
+    await saveAndSetExpenses(newExpenses);
+  };
+
   return (
     <ExpensesContext.Provider
       value={{
@@ -92,6 +93,8 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
         editExpense,
         removeExpense,
         togglePaid,
+        reloadExpenses,
+        resetExpenses,
         loading,
       }}
     >

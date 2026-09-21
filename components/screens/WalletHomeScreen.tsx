@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardsCarousel from '../cards/CardsCarousel';
 import MetricCard from '../dashboard/MetricCard';
+import FAB from '../ui/FAB';
+import AddExpenseScreen from './AddExpenseScreen';
 import EditExpenseScreen from './EditExpenseScreen';
 import { useCards } from '../../contexts/CardsContext';
 import { Expense, useExpenses } from '../../contexts/ExpensesContext';
@@ -25,6 +27,7 @@ export default function WalletHomeScreen() {
   const { expenses, togglePaid } = useExpenses();
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [showEditExpense, setShowEditExpense] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
 
   // Month expenses
   const currentMonthExpenses = useMemo(() => {
@@ -87,7 +90,7 @@ export default function WalletHomeScreen() {
         {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>cash</Text>
-          <Text style={styles.subtitle}>Seus cartões e contas em um só lugar.</Text>
+          <Text style={styles.subtitle}>Your cards and accounts in one place.</Text>
         </View>
 
         {/* Cards Carousel */}
@@ -101,44 +104,44 @@ export default function WalletHomeScreen() {
 
         {/* Metrics Section */}
         <View style={styles.metricsContainer}>
-          {/* Limite disponível */}
+          {/* Available limit */}
           <MetricCard
-            label="Limite disponível"
+            label="Available limit"
             value={formatCurrency(limiteDisponivel)}
-            subtitle={`de ${formatCurrency(cardLimit)}`}
+            subtitle={`of ${formatCurrency(cardLimit)}`}
             badge={`${percentage}%`}
           />
 
-          {/* Total gasto */}
+          {/* Total spent */}
           <MetricCard
-            label="Total gasto"
+            label="Total spent"
             value={formatCurrency(totalGasto)}
-            subtitle={`de ${formatCurrency(cardLimit)}`}
+            subtitle={`of ${formatCurrency(cardLimit)}`}
             badge={`${percentage}%`}
           />
 
-          {/* Split Row: Pendente & Pago */}
+          {/* Split Row: Pending & Paid */}
           <View style={styles.splitRow}>
             <MetricCard
-              label="Pendente"
+              label="Pending"
               value={formatCurrency(pendente)}
               variant="compact"
             />
             <View style={{ width: 12 }} />
             <MetricCard
-              label="Pago"
+              label="Paid"
               value={formatCurrency(pago)}
               variant="compact"
             />
           </View>
         </View>
 
-        {/* Movimentações Section */}
+        {/* Transactions Section */}
         <View style={styles.transactionsSection}>
           <View style={styles.transactionsHeader}>
-            <Text style={styles.transactionsTitle}>MOVIMENTAÇÕES</Text>
+            <Text style={styles.transactionsTitle}>TRANSACTIONS</Text>
             <Text style={styles.transactionsCount}>
-              {sortedExpenses.length} {sortedExpenses.length === 1 ? 'item' : 'itens'}
+              {sortedExpenses.length} {sortedExpenses.length === 1 ? 'item' : 'items'}
             </Text>
           </View>
 
@@ -152,7 +155,7 @@ export default function WalletHomeScreen() {
               {sortedExpenses.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Ionicons name="receipt-outline" size={32} color="#303038" />
-                  <Text style={styles.emptyText}>Nenhuma movimentação neste cartão</Text>
+                  <Text style={styles.emptyText}>No transactions on this card</Text>
                 </View>
               ) : (
                 sortedExpenses.map((item) => (
@@ -179,7 +182,7 @@ export default function WalletHomeScreen() {
                       <View style={styles.expenseSubDetails}>
                         <Text style={styles.expensePerson}>{item.person}</Text>
                         <Text style={styles.expenseDate}>
-                          {item.date.toLocaleDateString('pt-BR', {
+                          {item.date.toLocaleDateString('en-US', {
                             day: '2-digit',
                             month: 'short',
                           })}
@@ -221,6 +224,14 @@ export default function WalletHomeScreen() {
           </View>
         </View>
       </View>
+
+      {/* Floating Action Button (+) */}
+      <FAB onPress={() => setShowAddExpense(true)} />
+
+      {/* Add Expense Modal */}
+      <Modal visible={showAddExpense} animationType="slide" presentationStyle="fullScreen">
+        <AddExpenseScreen onClose={() => setShowAddExpense(false)} />
+      </Modal>
 
       {/* Edit / Details Modal */}
       <Modal visible={showEditExpense} animationType="slide" presentationStyle="fullScreen">
