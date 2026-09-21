@@ -1,13 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Expense } from '../contexts/ExpensesContext';
+import { CreditCard, Expense } from '../types';
 
-const EXPENSES_STORAGE_KEY = '@cashya:expenses';
-const LAST_ACTIVE_KEY = '@cashya:last_active_at';
+const STORAGE_KEYS = {
+  EXPENSES: '@cashya:expenses',
+  CARDS: '@cashya:cards',
+  LAST_ACTIVE: '@cashya:last_active_at',
+} as const;
 
 export const StorageService = {
   async getExpenses(): Promise<Expense[]> {
     try {
-      const data = await AsyncStorage.getItem(EXPENSES_STORAGE_KEY);
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.EXPENSES);
       if (!data) return [];
       const parsed = JSON.parse(data);
       return parsed.map((item: any) => ({
@@ -22,7 +25,7 @@ export const StorageService = {
 
   async saveExpenses(expenses: Expense[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
+      await AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
     } catch (error) {
       console.error('Error saving expenses to storage:', error);
       throw error;
@@ -31,7 +34,7 @@ export const StorageService = {
 
   async getLastActiveAt(): Promise<Date | null> {
     try {
-      const val = await AsyncStorage.getItem(LAST_ACTIVE_KEY);
+      const val = await AsyncStorage.getItem(STORAGE_KEYS.LAST_ACTIVE);
       return val ? new Date(val) : null;
     } catch {
       return null;
@@ -40,15 +43,15 @@ export const StorageService = {
 
   async setLastActiveAt(date: Date = new Date()): Promise<void> {
     try {
-      await AsyncStorage.setItem(LAST_ACTIVE_KEY, date.toISOString());
+      await AsyncStorage.setItem(STORAGE_KEYS.LAST_ACTIVE, date.toISOString());
     } catch (error) {
       console.error('Error saving last active timestamp:', error);
     }
   },
 
-  async getCards(): Promise<any[]> {
+  async getCards(): Promise<CreditCard[]> {
     try {
-      const data = await AsyncStorage.getItem('@cashya:cards');
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.CARDS);
       if (!data) return [];
       return JSON.parse(data);
     } catch (error) {
@@ -57,11 +60,24 @@ export const StorageService = {
     }
   },
 
-  async saveCards(cards: any[]): Promise<void> {
+  async saveCards(cards: CreditCard[]): Promise<void> {
     try {
-      await AsyncStorage.setItem('@cashya:cards', JSON.stringify(cards));
+      await AsyncStorage.setItem(STORAGE_KEYS.CARDS, JSON.stringify(cards));
     } catch (error) {
       console.error('Error saving cards to storage:', error);
+      throw error;
+    }
+  },
+
+  async clearAllData(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.EXPENSES,
+        STORAGE_KEYS.CARDS,
+        STORAGE_KEYS.LAST_ACTIVE,
+      ]);
+    } catch (error) {
+      console.error('Error clearing data:', error);
       throw error;
     }
   },

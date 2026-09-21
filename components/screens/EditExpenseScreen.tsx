@@ -3,19 +3,20 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Expense, useExpenses } from '../../contexts/ExpensesContext';
+import { useExpenses } from '../../contexts/ExpensesContext';
 import { COLORS, FONTS } from '../../theme';
+import { Expense } from '../../types';
 
 const { height } = Dimensions.get('window');
 
@@ -26,7 +27,7 @@ interface EditExpenseScreenProps {
 
 export default function EditExpenseScreen({ expense, onClose }: EditExpenseScreenProps) {
   const { editExpense, removeExpense } = useExpenses();
-  
+
   const [description, setDescription] = useState(expense.description);
   const [amount, setAmount] = useState(expense.amount.toString());
   const [person, setPerson] = useState(expense.person);
@@ -43,44 +44,45 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+    setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
   const handleSave = async () => {
     if (!description.trim()) {
-      Alert.alert('Error', 'Please enter a description');
+      Alert.alert('Warning', 'Please enter a description.');
       return;
     }
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+    const parsedAmount = parseFloat(amount.replace(',', '.'));
+    if (!parsedAmount || parsedAmount <= 0) {
+      Alert.alert('Warning', 'Please enter a valid amount.');
       return;
     }
     if (!person.trim()) {
-      Alert.alert('Error', 'Please enter who should pay');
+      Alert.alert('Warning', 'Please enter who should pay / responsible.');
       return;
     }
 
     try {
       await editExpense(expense.id, {
         description: description.trim(),
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         person: person.trim(),
         date: date,
         tags: tags,
       });
 
       Alert.alert('Success', 'Expense updated successfully!', [
-        { text: 'OK', onPress: onClose }
+        { text: 'OK', onPress: onClose },
       ]);
     } catch {
-      Alert.alert('Error', 'Failed to update expense');
+      Alert.alert('Error', 'Unable to update expense.');
     }
   };
 
   const handleDelete = () => {
     Alert.alert(
       'Delete Expense',
-      'Are you sure you want to delete this expense?',
+      'Are you sure you want to delete this expense permanently?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -88,8 +90,8 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
           style: 'destructive',
           onPress: async () => {
             await removeExpense(expense.id);
-            Alert.alert('Deleted', 'Expense deleted successfully', [
-              { text: 'OK', onPress: onClose }
+            Alert.alert('Deleted', 'Expense removed successfully.', [
+              { text: 'OK', onPress: onClose },
             ]);
           },
         },
@@ -97,7 +99,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
     );
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
+  const onDateChange = (_event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setDate(selectedDate);
@@ -107,12 +109,12 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.backgroundGradientStart} />
-      
+
       <LinearGradient
         colors={[COLORS.backgroundGradientStart, COLORS.backgroundGradientEnd]}
         style={styles.gradient}
       />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -120,11 +122,11 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Expense</Text>
         <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
-          <MaterialIcons name="delete-outline" size={24} color={COLORS.primary} />
+          <Ionicons name="trash-outline" size={24} color={COLORS.error} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -134,7 +136,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
           <Text style={styles.label}>Description</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., Restaurant dinner"
+            placeholder="e.g., Dinner, Grocery store..."
             placeholderTextColor={COLORS.textSecondary}
             value={description}
             onChangeText={setDescription}
@@ -146,7 +148,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Amount</Text>
           <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>R$</Text>
+            <Text style={styles.currencySymbol}>$</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0.00"
@@ -160,10 +162,10 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
 
         {/* Person Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Who should pay?</Text>
+          <Text style={styles.label}>Who should pay / Responsible</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., John"
+            placeholder="e.g., John, Mary, House..."
             placeholderTextColor={COLORS.textSecondary}
             value={person}
             onChangeText={setPerson}
@@ -180,10 +182,10 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
           >
             <MaterialIcons name="calendar-today" size={20} color={COLORS.textSecondary} />
             <Text style={styles.dateText}>
-              {date.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
+              {date.toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
               })}
             </Text>
           </TouchableOpacity>
@@ -211,10 +213,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
               onSubmitEditing={handleAddTag}
               autoCapitalize="none"
             />
-            <TouchableOpacity 
-              style={styles.addTagButton}
-              onPress={handleAddTag}
-            >
+            <TouchableOpacity style={styles.addTagButton} onPress={handleAddTag}>
               <MaterialIcons name="add" size={24} color={COLORS.text} />
             </TouchableOpacity>
           </View>
@@ -235,11 +234,16 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
             </View>
           )}
         </View>
+
+        {/* Hints */}
+        <View style={styles.hintsContainer}>
+          <Text style={styles.hintText}>Tap a tag to remove it</Text>
+        </View>
       </ScrollView>
 
       {/* Save Button */}
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.saveButton}
           onPress={handleSave}
           activeOpacity={0.8}
@@ -254,6 +258,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000000',
   },
   gradient: {
     position: 'absolute',
@@ -269,114 +274,99 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.system,
-    fontWeight: '600',
-    color: COLORS.text,
+    padding: 5,
   },
   deleteButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 5,
+  },
+  headerTitle: {
+    fontFamily: FONTS.ndot || FONTS.system,
+    fontSize: 18,
+    color: COLORS.text,
+    letterSpacing: 1,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontFamily: FONTS.system,
+    fontSize: 13,
     color: COLORS.textSecondary,
     marginBottom: 8,
+    fontWeight: '500',
   },
   input: {
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    fontFamily: FONTS.system,
-    color: COLORS.text,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 14,
+    color: COLORS.text,
+    fontSize: 15,
   },
   amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingLeft: 16,
+    borderRadius: 12,
+    paddingHorizontal: 14,
   },
   currencySymbol: {
+    fontFamily: FONTS.ndot || FONTS.system,
     fontSize: 20,
-    fontFamily: FONTS.system,
-    fontWeight: 'bold',
     color: COLORS.primary,
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
-    padding: 16,
-    fontSize: 16,
-    fontFamily: FONTS.system,
+    paddingVertical: 14,
     color: COLORS.text,
+    fontSize: 18,
+    fontFamily: FONTS.ndot || FONTS.system,
   },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    gap: 12,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
   },
   dateText: {
-    fontSize: 16,
-    fontFamily: FONTS.system,
     color: COLORS.text,
+    fontSize: 15,
   },
   tagInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingRight: 8,
   },
   tagInput: {
     flex: 1,
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    fontFamily: FONTS.system,
+    padding: 14,
     color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    fontSize: 15,
   },
   addTagButton: {
-    width: 50,
-    height: 50,
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    padding: 6,
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -387,33 +377,48 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: COLORS.cardBackgroundLight,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     gap: 6,
   },
   tagText: {
-    fontSize: 13,
-    fontFamily: FONTS.system,
     color: COLORS.text,
+    fontSize: 13,
+  },
+  hintsContainer: {
+    marginTop: 10,
+  },
+  hintText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   footer: {
     padding: 20,
-    backgroundColor: COLORS.background,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    backgroundColor: COLORS.background,
   },
   saveButton: {
     backgroundColor: COLORS.primary,
+    paddingVertical: 16,
     borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   saveButtonText: {
-    fontSize: 16,
-    fontFamily: FONTS.system,
-    fontWeight: '600',
     color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });

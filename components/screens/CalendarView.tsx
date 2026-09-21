@@ -20,7 +20,7 @@ interface CalendarViewProps {
 const { width } = Dimensions.get('window');
 const CELL_SIZE = Math.floor((width - 40) / 7);
 
-const WEEKDAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 export default function CalendarView({
   currentMonth,
