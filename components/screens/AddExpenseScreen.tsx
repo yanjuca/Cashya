@@ -3,7 +3,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Platform,
   ScrollView,
@@ -14,9 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
-import { COLORS, FONTS } from '../../theme';
+import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 
 const { height } = Dimensions.get('window');
 
@@ -25,12 +25,14 @@ interface AddExpenseScreenProps {
 }
 
 export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
+  const { showAlert } = useAlert();
   const { addExpense } = useExpenses();
-  const { activeCard } = useCards();
+  const { cards, activeCard } = useCards();
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [person, setPerson] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState<string | undefined>(activeCard?.id);
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tagInput, setTagInput] = useState('');
@@ -49,16 +51,28 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
 
   const handleSave = async () => {
     if (!description.trim()) {
-      Alert.alert('Warning', 'Please enter a description.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a description.',
+        type: 'warning',
+      });
       return;
     }
     const parsedAmount = parseFloat(amount.replace(',', '.'));
     if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Warning', 'Please enter a valid amount.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a valid amount.',
+        type: 'warning',
+      });
       return;
     }
     if (!person.trim()) {
-      Alert.alert('Warning', 'Please enter who should pay / responsible.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter who should pay / responsible.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -70,15 +84,22 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
         date: date,
         tags: tags,
         paid: false,
-        cardId: activeCard?.id,
+        cardId: selectedCardId,
         source: 'manual',
       });
 
-      Alert.alert('Success', 'Expense recorded successfully!', [
-        { text: 'OK', onPress: onClose },
-      ]);
+      showAlert({
+        title: 'Success',
+        message: 'Expense recorded successfully!',
+        type: 'success',
+        buttons: [{ text: 'OK', onPress: onClose }],
+      });
     } catch {
-      Alert.alert('Error', 'Unable to save expense.');
+      showAlert({
+        title: 'Error',
+        message: 'Unable to save expense.',
+        type: 'danger',
+      });
     }
   };
 
@@ -140,6 +161,64 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
             />
           </View>
         </View>
+
+        {/* Card Selector */}
+        {cards.length > 0 && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Card / Account</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardSelectorRow}>
+              <TouchableOpacity
+                style={[
+                  styles.cardSelectorPill,
+                  !selectedCardId && styles.cardSelectorPillActive,
+                ]}
+                onPress={() => setSelectedCardId(undefined)}
+              >
+                <Ionicons
+                  name="cash-outline"
+                  size={14}
+                  color={!selectedCardId ? '#ffffff' : COLORS.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.cardSelectorText,
+                    !selectedCardId && styles.cardSelectorTextActive,
+                  ]}
+                >
+                  General / Cash
+                </Text>
+              </TouchableOpacity>
+
+              {cards.map((c) => {
+                const isSelected = selectedCardId === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.cardSelectorPill,
+                      isSelected && styles.cardSelectorPillActive,
+                    ]}
+                    onPress={() => setSelectedCardId(c.id)}
+                  >
+                    <Ionicons
+                      name="card-outline"
+                      size={14}
+                      color={isSelected ? '#ffffff' : COLORS.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.cardSelectorText,
+                        isSelected && styles.cardSelectorTextActive,
+                      ]}
+                    >
+                      {c.holderName} (•••• {c.lastDigits})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Person Input */}
         <View style={styles.inputGroup}>
@@ -290,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     padding: 14,
     color: COLORS.text,
     fontSize: 15,
@@ -301,7 +380,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: 14,
   },
   currencySymbol: {
@@ -323,7 +402,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     padding: 14,
     gap: 10,
   },
@@ -337,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     paddingRight: 8,
   },
   tagInput: {
@@ -361,7 +440,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackgroundLight,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.sm,
     paddingVertical: 6,
     paddingHorizontal: 12,
     gap: 6,
@@ -372,6 +451,34 @@ const styles = StyleSheet.create({
   },
   hintsContainer: {
     marginTop: 10,
+  },
+  cardSelectorRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  cardSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  cardSelectorPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  cardSelectorText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  cardSelectorTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
   hintText: {
     color: COLORS.textMuted,
@@ -388,7 +495,7 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },

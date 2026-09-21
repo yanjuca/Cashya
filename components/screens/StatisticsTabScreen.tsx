@@ -7,7 +7,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../../contexts/ExpensesContext';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
@@ -83,14 +82,8 @@ export default function StatisticsTabScreen() {
   const highestMonthTotal = stats.byMonth.reduce((max, item) => Math.max(max, item.total), 0) || 1;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>ANALYTICS</Text>
-        <Text style={styles.subtitle}>Consolidated financial report</Text>
-      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -209,7 +202,7 @@ export default function StatisticsTabScreen() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -219,24 +212,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   header: {
-    paddingHorizontal: 22,
-    paddingTop: 16,
-    paddingBottom: 14,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
   title: {
     fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 24,
+    fontSize: 28,
     color: '#ffffff',
     letterSpacing: 1.5,
   },
-  subtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   section: {
     marginBottom: 24,
@@ -323,7 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: BORDER_RADIUS.xs,
     alignSelf: 'flex-start',
     marginBottom: 4,
   },
@@ -348,7 +336,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 18,
     backgroundColor: '#16161a',
-    borderRadius: 9,
+    borderRadius: BORDER_RADIUS.full,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#24242a',
@@ -356,7 +344,7 @@ const styles = StyleSheet.create({
   trendBar: {
     height: '100%',
     backgroundColor: COLORS.primary,
-    borderRadius: 9,
+    borderRadius: BORDER_RADIUS.full,
   },
   trendValue: {
     fontFamily: FONTS.ndot || FONTS.system,

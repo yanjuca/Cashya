@@ -1,13 +1,16 @@
-import React, { useMemo } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useMemo, useRef } from 'react';
 import {
   Dimensions,
+  PanResponder,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Expense } from '../../contexts/ExpensesContext';
-import { COLORS, FONTS } from '../../theme';
+import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { toDateKey } from '../../utils/formatters';
 
 interface CalendarViewProps {
@@ -15,6 +18,9 @@ interface CalendarViewProps {
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
   expenses: Expense[];
+  onSwipeMonthLeft?: () => void;
+  onSwipeMonthRight?: () => void;
+  onGestureActive?: (active: boolean) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -27,9 +33,59 @@ export default function CalendarView({
   selectedDate,
   onSelectDate,
   expenses,
+  onSwipeMonthLeft,
+  onSwipeMonthRight,
+  onGestureActive,
 }: CalendarViewProps) {
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_evt, gestureState) => {
+        // Trigger capture when user drags horizontally on the calendar
+        const isHorizontal = Math.abs(gestureState.dx) > 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        return isHorizontal;
+      },
+      onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
+        const isHorizontal = Math.abs(gestureState.dx) > 12 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        return isHorizontal;
+      },
+      onPanResponderGrant: () => {
+        onGestureActive?.(true);
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderTerminate: () => {
+        onGestureActive?.(false);
+      },
+      onPanResponderRelease: (_evt, gestureState) => {
+        onGestureActive?.(false);
+        if (gestureState.dx > 35) {
+          // Swiped right -> go to previous month
+          if (Platform.OS !== 'web') {
+            try {
+              Haptics.selectionAsync();
+            } catch {
+              // Ignore
+            }
+          }
+          onSwipeMonthRight?.();
+        } else if (gestureState.dx < -35) {
+          // Swiped left -> go to next month
+          if (Platform.OS !== 'web') {
+            try {
+              Haptics.selectionAsync();
+            } catch {
+              // Ignore
+            }
+          }
+          onSwipeMonthLeft?.();
+        }
+      },
+    })
+  ).current;
 
   // Map expenses by day string 'YYYY-MM-DD'
   const expensesByDay = useMemo(() => {
@@ -91,7 +147,7 @@ export default function CalendarView({
   const todayKey = toDateKey(new Date());
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       {/* Weekday Labels Header */}
       <View style={styles.weekdaysRow}>
         {WEEKDAYS.map((w, index) => (
@@ -182,7 +238,7 @@ const styles = StyleSheet.create({
     height: CELL_SIZE + 4,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: BORDER_RADIUS.sm,
     marginVertical: 2,
   },
   dayCellSelected: {
@@ -216,7 +272,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 4,
     height: 4,
-    borderRadius: 2,
+    borderRadius: BORDER_RADIUS.full,
   },
   dotPending: {
     backgroundColor: COLORS.error, // Red

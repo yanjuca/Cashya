@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  Alert,
   Modal,
   ScrollView,
   StatusBar,
@@ -11,78 +10,37 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { DEFAULT_CARDS, useCards } from '../../contexts/CardsContext';
+import { useAlert } from '../../contexts/AlertContext';
+import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
 import { BackupService } from '../../services/backup';
 import { StorageService } from '../../services/storage';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
-import { CardBrand, CardType, CreditCard } from '../../types';
+import { CreditCard } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 
+import AddCardModal from '../cards/AddCardModal';
+
 export default function SettingsScreen() {
-  const { cards, addCard, removeCard, reloadCards, resetCards } = useCards();
+  const { showAlert } = useAlert();
+  const { cards, removeCard, reloadCards, resetCards } = useCards();
   const { expenses, reloadExpenses, resetExpenses } = useExpenses();
 
   // Modal State for Add Card
   const [showAddCardModal, setShowAddCardModal] = useState(false);
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardType, setCardType] = useState<CardType>('Credit');
-  const [cardBrand, setCardBrand] = useState<CardBrand>('visa');
-  const [cardLastDigits, setCardLastDigits] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardLimit, setCardLimit] = useState('');
 
   // Modal State for Restore
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreJsonInput, setRestoreJsonInput] = useState('');
 
-  // Handle Add Card
-  const handleCreateCard = async () => {
-    if (!cardHolder.trim()) {
-      Alert.alert('Warning', 'Please enter the cardholder name.');
-      return;
-    }
-    if (cardLastDigits.trim().length !== 4) {
-      Alert.alert('Warning', 'Please enter the last 4 digits of the card.');
-      return;
-    }
-    const limitNum = parseFloat(cardLimit);
-    if (isNaN(limitNum) || limitNum <= 0) {
-      Alert.alert('Warning', 'Please enter a valid limit greater than zero.');
-      return;
-    }
-
-    await addCard({
-      holderName: cardHolder.trim().toUpperCase(),
-      brand: cardBrand,
-      type: cardType,
-      lastDigits: cardLastDigits.trim(),
-      expiryDate: cardExpiry.trim() || '12/29',
-      limit: limitNum,
-      colorAccent: cardBrand === 'mastercard' ? '#ff9f0a' : COLORS.primary,
-    });
-
-    // Reset Form
-    setCardHolder('');
-    setCardLastDigits('');
-    setCardExpiry('');
-    setCardLimit('');
-    setShowAddCardModal(false);
-    Alert.alert('Success', 'New card added successfully!');
-  };
-
   // Handle Remove Card
   const handleRemoveCard = (card: CreditCard) => {
-    if (cards.length <= 1) {
-      Alert.alert('Notice', 'You must keep at least one card registered.');
-      return;
-    }
-
-    Alert.alert(
-      'Remove Card',
-      `Are you sure you want to remove the card ending in ${card.lastDigits} (${card.holderName})?`,
-      [
+    showAlert({
+      title: 'Remove Card',
+      message: `Are you sure you want to remove the card ending in ${card.lastDigits} (${card.holderName})?`,
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
@@ -91,22 +49,30 @@ export default function SettingsScreen() {
             await removeCard(card.id);
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   // Handle Export Backup
   const handleExportBackup = async () => {
     const success = await BackupService.shareBackup();
     if (success) {
-      Alert.alert('Backup Exported', 'Your backup file has been generated and shared successfully!');
+      showAlert({
+        title: 'Backup Exported',
+        message: 'Your backup file has been generated and shared successfully!',
+        type: 'success',
+      });
     }
   };
 
   // Handle Restore Backup
   const handleRestoreBackup = async () => {
     if (!restoreJsonInput.trim()) {
-      Alert.alert('Warning', 'Please paste the backup JSON content to restore.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please paste the backup JSON content to restore.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -116,21 +82,28 @@ export default function SettingsScreen() {
       await reloadCards();
       setShowRestoreModal(false);
       setRestoreJsonInput('');
-      Alert.alert(
-        'Restore Complete',
-        `Successfully restored ${result.count?.expenses || 0} expenses and ${result.count?.cards || 0} cards.`
-      );
+      showAlert({
+        title: 'Restore Complete',
+        message: `Successfully restored ${result.count?.expenses || 0} expenses and ${result.count?.cards || 0} cards.`,
+        type: 'success',
+      });
     } else {
-      Alert.alert('Restore Error', result.message);
+      showAlert({
+        title: 'Restore Error',
+        message: result.message,
+        type: 'danger',
+      });
     }
   };
 
   // Handle Clear All Data
   const handleClearAllData = () => {
-    Alert.alert(
-      'Reset All Data',
-      'WARNING: All expenses and cards will be permanently deleted. Do you wish to continue?',
-      [
+    showAlert({
+      title: 'Reset All Data',
+      message: 'WARNING: All expenses and cards will be permanently deleted. Do you wish to continue?',
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete All',
@@ -138,27 +111,26 @@ export default function SettingsScreen() {
           onPress: async () => {
             await StorageService.clearAllData();
             await resetExpenses([]);
-            await resetCards(DEFAULT_CARDS);
-            Alert.alert('Complete', 'The database has been reset to its initial state.');
+            await resetCards([]);
+            showAlert({
+              title: 'Complete',
+              message: 'The database has been reset.',
+              type: 'success',
+            });
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>settings</Text>
-          <Text style={styles.headerSubtitle}>backup, cards and preferences</Text>
-        </View>
 
         {/* SECTION 1: CARDS */}
         <View style={styles.section}>
@@ -174,33 +146,38 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.cardsList}>
-            {cards.map((card) => (
-              <View key={card.id} style={styles.cardItem}>
-                <View style={styles.cardInfoLeft}>
-                  <View style={styles.cardBrandBadge}>
-                    <Text style={styles.cardBrandText}>{card.brand.toUpperCase()}</Text>
+            {cards.length === 0 ? (
+              <View style={styles.emptyCardsContainer}>
+                <Ionicons name="card-outline" size={32} color="#444" />
+                <Text style={styles.emptyCardsText}>No cards registered yet</Text>
+              </View>
+            ) : (
+              cards.map((card) => (
+                <View key={card.id} style={styles.cardItem}>
+                  <View style={styles.cardInfoLeft}>
+                    <View style={styles.cardBrandBadge}>
+                      <Text style={styles.cardBrandText}>{card.brand.toUpperCase()}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.cardDigits}>•••• {card.lastDigits}</Text>
+                      <Text style={styles.cardHolder}>
+                        {card.holderName} • {card.type}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.cardDigits}>•••• {card.lastDigits}</Text>
-                    <Text style={styles.cardHolder}>
-                      {card.holderName} • {card.type}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.cardInfoRight}>
-                  <Text style={styles.cardLimit}>{formatCurrency(card.limit)}</Text>
-                  {cards.length > 1 && (
+                  <View style={styles.cardInfoRight}>
+                    <Text style={styles.cardLimit}>{formatCurrency(card.limit)}</Text>
                     <TouchableOpacity
                       onPress={() => handleRemoveCard(card)}
                       style={styles.cardDeleteBtn}
                     >
                       <Ionicons name="trash-outline" size={16} color="#ff5252" />
                     </TouchableOpacity>
-                  )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         </View>
 
@@ -278,109 +255,10 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* MODAL: ADD CARD */}
-      <Modal visible={showAddCardModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Card</Text>
-              <TouchableOpacity onPress={() => setShowAddCardModal(false)}>
-                <Ionicons name="close" size={24} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Cardholder Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., JOHN DOE"
-                placeholderTextColor={COLORS.textSecondary}
-                value={cardHolder}
-                onChangeText={setCardHolder}
-                autoCapitalize="characters"
-              />
-
-              <Text style={styles.inputLabel}>Card Type</Text>
-              <View style={styles.pillRow}>
-                {(['Credit', 'Debit'] as CardType[]).map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.pillOption, cardType === t && styles.pillOptionActive]}
-                    onPress={() => setCardType(t)}
-                  >
-                    <Text
-                      style={[styles.pillOptionText, cardType === t && styles.pillOptionTextActive]}
-                    >
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Brand</Text>
-              <View style={styles.pillRow}>
-                {(['visa', 'mastercard', 'elo', 'generic'] as CardBrand[]).map((b) => (
-                  <TouchableOpacity
-                    key={b}
-                    style={[styles.pillOption, cardBrand === b && styles.pillOptionActive]}
-                    onPress={() => setCardBrand(b)}
-                  >
-                    <Text
-                      style={[styles.pillOptionText, cardBrand === b && styles.pillOptionTextActive]}
-                    >
-                      {b.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.inputRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.inputLabel}>Last 4 digits</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="1234"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={cardLastDigits}
-                    onChangeText={setCardLastDigits}
-                    keyboardType="numeric"
-                    maxLength={4}
-                  />
-                </View>
-
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.inputLabel}>Expiry (MM/YY)</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="12/29"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={cardExpiry}
-                    onChangeText={setCardExpiry}
-                    maxLength={5}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.inputLabel}>Total Limit ($)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., 5000"
-                placeholderTextColor={COLORS.textSecondary}
-                value={cardLimit}
-                onChangeText={setCardLimit}
-                keyboardType="numeric"
-              />
-
-              <TouchableOpacity
-                style={styles.modalSaveButton}
-                onPress={handleCreateCard}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalSaveButtonText}>Save Card</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <AddCardModal
+        visible={showAddCardModal}
+        onClose={() => setShowAddCardModal(false)}
+      />
 
       {/* MODAL: RESTORE BACKUP */}
       <Modal visible={showRestoreModal} animationType="slide" transparent>
@@ -417,7 +295,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -429,21 +307,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 110,
-    paddingTop: 10,
   },
   header: {
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
   headerTitle: {
     fontFamily: FONTS.ndot || FONTS.system,
     fontSize: 28,
     color: '#ffffff',
     letterSpacing: 1.5,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
   },
   section: {
     marginBottom: 24,
@@ -455,11 +329,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
+    fontFamily: FONTS.ndotCaps || FONTS.system,
     fontSize: 11,
     color: COLORS.textSecondary,
     letterSpacing: 1,
-    fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   actionBtnSmall: {
     flexDirection: 'row',
@@ -480,9 +354,24 @@ const styles = StyleSheet.create({
   cardsList: {
     gap: 10,
   },
+  emptyCardsContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16161a',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#24242a',
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  emptyCardsText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+  },
   cardItem: {
     backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     padding: 14,
     borderWidth: 1,
     borderColor: '#24242a',
@@ -499,7 +388,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#202028',
     paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 6,
+    borderRadius: BORDER_RADIUS.xs,
   },
   cardBrandText: {
     fontSize: 10,
@@ -532,7 +421,7 @@ const styles = StyleSheet.create({
   },
   backupCard: {
     backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     padding: 16,
     borderWidth: 1,
     borderColor: '#24242a',
@@ -581,7 +470,7 @@ const styles = StyleSheet.create({
   },
   statsCard: {
     backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     padding: 16,
     borderWidth: 1,
     borderColor: '#24242a',
@@ -667,55 +556,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
+    fontFamily: FONTS.ndot || FONTS.system,
     fontSize: 18,
-    fontWeight: '700',
     color: '#ffffff',
-  },
-  inputLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  modalInput: {
-    backgroundColor: '#1a1a20',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#ffffff',
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#262630',
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 4,
-  },
-  pillOption: {
-    flex: 1,
-    backgroundColor: '#1a1a20',
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#262630',
-  },
-  pillOptionActive: {
-    backgroundColor: '#2c181a',
-    borderColor: COLORS.primary,
-  },
-  pillOptionText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  pillOptionTextActive: {
-    color: '#ffffff',
-  },
-  inputRow: {
-    flexDirection: 'row',
+    letterSpacing: 1,
   },
   modalSaveButton: {
     backgroundColor: COLORS.primary,

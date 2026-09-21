@@ -91,8 +91,9 @@ The app is structured into **4 main navigation tabs + Floating Action Button (FA
 
 Cashya uses a **Pragmatic Feature-Based Modular Architecture**, combining clear separation of concerns with TypeScript strict typing and agile development.
 
-> 📖 **Check out the full architecture and onboarding guide**:  
-> 👉 [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md)
+> 📖 **Check out the technical documentation**:  
+> 👉 [**Frontend Architecture Guide**](docs/ARCHITECTURE.md)  
+> 👉 [**Backend & API Specification Guide**](docs/BACKEND_SPEC.md)
 
 ---
 
