@@ -1,23 +1,15 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { StorageService } from '../services/storage';
+import { CreditCard } from '../types';
 
-export interface CreditCard {
-  id: string;
-  holderName: string;
-  brand: 'visa' | 'mastercard' | 'elo' | 'generic';
-  type: 'Crédito' | 'Débito';
-  lastDigits: string;
-  expiryDate: string;
-  limit: number;
-  colorAccent?: string;
-}
+export { CreditCard };
 
-const DEFAULT_CARDS: CreditCard[] = [
+export const DEFAULT_CARDS: CreditCard[] = [
   {
     id: 'card-1',
-    holderName: 'JOÃO SILVA',
+    holderName: 'MAIN WALLET',
     brand: 'visa',
-    type: 'Débito',
+    type: 'Debit',
     lastDigits: '1234',
     expiryDate: '12/28',
     limit: 3000,
@@ -25,9 +17,9 @@ const DEFAULT_CARDS: CreditCard[] = [
   },
   {
     id: 'card-2',
-    holderName: 'JOÃO SILVA',
+    holderName: 'CREDIT CARD',
     brand: 'mastercard',
-    type: 'Crédito',
+    type: 'Credit',
     lastDigits: '5678',
     expiryDate: '09/29',
     limit: 5000,
@@ -43,6 +35,8 @@ interface CardsContextData {
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<void>;
   updateCard: (id: string, card: Partial<CreditCard>) => Promise<void>;
   removeCard: (id: string) => Promise<void>;
+  reloadCards: () => Promise<void>;
+  resetCards: (newCards: CreditCard[]) => Promise<void>;
   loading: boolean;
 }
 
@@ -105,6 +99,15 @@ export function CardsProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const reloadCards = async () => {
+    await loadCards();
+  };
+
+  const resetCards = async (newCards: CreditCard[]) => {
+    await saveAndSetCards(newCards);
+    setActiveCardIndex(0);
+  };
+
   const activeCard = cards[activeCardIndex] || cards[0] || null;
 
   return (
@@ -117,6 +120,8 @@ export function CardsProvider({ children }: { children: ReactNode }) {
         addCard,
         updateCard,
         removeCard,
+        reloadCards,
+        resetCards,
         loading,
       }}
     >

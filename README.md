@@ -2,11 +2,11 @@
 
 # `cashya`
 
-**Controle financeiro pessoal e compartilhado com design minimalista, retrô-futurista e foco em simplicidade.**
+**Personal and shared expense tracking with minimalist, retro-futuristic design and focus on simplicity.**
 
-[![Expo](https://img.shields.io/badge/Expo-SDK%2054-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
-[![React Native](https://img.shields.io/badge/React_Native-0.81-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Expo](https://img.shields.io/badge/Expo-SDK%2057-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React_Native-0.86-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Expo Router](https://img.shields.io/badge/Expo%20Router-v6-000?style=for-the-badge&logo=expo&logoColor=white)](https://docs.expo.dev/router/introduction/)
 [![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Web-E95420?style=for-the-badge)](https://expo.dev)
 
@@ -14,281 +14,227 @@
 
 ---
 
-## 📑 Sumário
+## 📑 Table of Contents
 
-- [Visão Geral](#-visão-geral)
-- [Destaques & Diferenciais](#-destaques--diferenciais)
-- [Funcionalidades](#-funcionalidades)
-- [Design & Identidade Visual](#-design--identidade-visual)
-- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-- [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Modelo de Dados](#-modelo-de-dados)
-- [Como Começar](#-como-começar)
-  - [Pré-requisitos](#pré-requisitos)
-  - [Instalação](#instalação)
-  - [Executando o App](#executando-o-app)
-- [Scripts Disponíveis](#-scripts-disponíveis)
-- [Compilação & Build (EAS)](#-compilação--build-eas)
-- [Roadmap de Melhorias](#-roadmap-de-melhorias)
-- [Licença & Créditos](#-licença--créditos)
+- [Overview](#-overview)
+- [Highlights & Features](#-highlights--features)
+- [Tab Navigation & Screens](#-tab-navigation--screens)
+- [Architecture & Technical Documentation](#-architecture--technical-documentation)
+- [Design & Visual Identity](#-design--visual-identity)
+- [Project Structure](#-project-structure)
+- [Data Models](#-data-models)
+- [Getting Started](#-getting-started)
+- [Available Scripts](#-available-scripts)
+- [Build & Deployment (EAS)](#-build--deployment-eas)
+- [License & Credits](#-license--credits)
 
 ---
 
-## 💡 Visão Geral
+## 💡 Overview
 
-O **Cashya** é um aplicativo mobile de gestão de despesas e finanças pessoais e compartilhadas, desenvolvido com **React Native** e **Expo**. Ele nasceu para resolver o problema de controle de contas e divisão de gastos com terceiros de forma direta, sem telas poluídas, sem necessidade de logins complexos e sem fricção.
+**Cashya** is a personal and shared expense tracking mobile application built with **React Native** and **Expo SDK 57**. It was designed to solve bill splitting and expense management with zero clutter, zero required cloud accounts, and zero friction.
 
-Inspirado na estética retrô-futurista e minimalista de sistemas como o **Nothing OS** (utilizando a tipografia Dot-Matrix `Ndot57`), o aplicativo combina elegância visual com uma experiência de uso rápida, fluida e totalmente **offline-first**.
-
----
-
-## ✨ Destaques & Diferenciais
-
-- 🔒 **Privacidade Total & Offline-First**: Todas as informações são persistidas localmente no dispositivo via `AsyncStorage`. Seus dados nunca saem do seu aparelho sem sua autorização.
-- ⚡ **Zero Burocracia**: Abra o app e use imediatamente — sem telas de cadastro ou autenticação obrigatória.
-- 🎨 **Estética Única (Dot-Matrix & Dark Mode)**: Fundo com gradiente sutil escuro, contraste em vermelho vibrante (`#ff5252`) e fontes exclusivas `Ndot57`.
-- 👥 **Divisão Inteligente de Contas**: Acompanhe facilmente quem deve pagar ou já realizou o pagamento de cada despesa.
-- 📊 **Dashboard Estatístico Completo**: Relatórios visuais com divisão por pessoa, por categoria/tag e histórico dos últimos 6 meses.
+Inspired by the retro-futuristic, minimalist aesthetics of systems like **Nothing OS** (featuring the custom dot-matrix typography `Ndot57`), the application blends visual elegance with high-speed performance and a pure **offline-first** architecture.
 
 ---
 
-## 🚀 Funcionalidades
+## ✨ Highlights & Features
 
-### 1. 💸 Registro & Gestão de Despesas
-- **Cadastro Completo**: Adicione despesa informando descrição, valor, pagador/devedor, data (com seletor nativo `DateTimePicker`) e tags.
-- **Edição Flexível**: Atualize qualquer informação da despesa a qualquer momento.
-- **Exclusão Segura**: Remova despesas com caixa de diálogo de confirmação para evitar perdas acidentais.
-
-### 2. 📅 Navegação Temporal por Mês
-- Alterne entre os meses de forma fluida através dos botões de navegação.
-- Cálculo automático e em tempo real dos indicadores do mês selecionado:
-  - **Month Total**: Soma de todas as despesas do mês.
-  - **Pending**: Total ainda pendente de acerto no mês.
-
-### 3. 🔄 Status de Pagamento Rápido
-- **Toque Longo (Long Press)** no card da despesa para alternar entre status **Pendente** (ponto vermelho) e **Pago** (ponto verde).
-- Identificação visual imediata do status através dos indicadores de cor.
-
-### 4. 🏷️ Categorias & Filtros Interativos
-- Crie tags dinâmicas para classificar suas despesas (ex.: `#alimentação`, `#viagem`, `#mercado`).
-- Barra de rolagem horizontal com **Chips de Filtro**:
-  - Filtre por **pessoa** com um único clique.
-  - Filtre por **tag/categoria**.
-  - Botão para limpar filtros ativos instantaneamente.
-
-### 5. 📊 Painel de Estatísticas (`StatisticsScreen`)
-- **Cards de Métricas**:
-  - Total geral acumulado.
-  - Valor total pago (com porcentagem do total).
-  - Valor total pendente (com porcentagem do total).
-  - Ticket médio por despesa.
-- **Detalhamento por Pessoa**:
-  - Lista de participantes com número de despesas, montante total e valor ainda pendente.
-- **Detalhamento por Categoria**:
-  - Ranking de tags mais utilizadas com percentual do gasto total.
-- **Tendência dos Últimos 6 Meses**:
-  - Gráfico de barras proporcional comparando os últimos 6 meses de gastos.
+- 🔒 **100% Offline-First & Privacy**: All information is stored locally on your device via `AsyncStorage`. Your financial data never leaves your device without your explicit action.
+- ⚡ **Zero Friction**: Open the app and use it immediately — no sign-up forms, no passwords, no mandatory network connectivity.
+- 🎨 **Nothing OS Aesthetic (Dot-Matrix & Dark Mode)**: Pure OLED black background (`#000000`), dark cards with subtle borders (`#24242a`), vibrant red accents (`#ff453a`), and custom `Ndot57` fonts.
+- 💳 **Card & Limit Management**: Track credit limits, available balance, and spent totals per card.
+- 👥 **Smart Split & Shared Expenses**: Effortlessly keep track of who owes what and who has already settled payments.
+- 💾 **Local Backup & Restore**: Export and restore your complete dataset natively via JSON files at any time.
 
 ---
 
-## 🎨 Design & Identidade Visual
+## 🚀 Tab Navigation & Screens
 
-O Cashya segue diretrizes de design minimalistas com inspiração techno-futurista:
+The app is structured into **4 main navigation tabs + Floating Action Button (FAB)**:
 
-| Elemento | Valor / Especificação |
-| :--- | :--- |
-| **Cor Primária** | `#ff5252` (Vermelho vibrante de destaque) |
-| **Dark Gradient Start** | `#2a1a1a` (Preto com leve matiz vermelho escuro) |
-| **Dark Gradient End** | `#1a1a1a` (Preto profundo) |
-| **Fundo de Cartões** | `#2a2a2a` |
-| **Bordas** | `#3a3a3a` |
-| **Tipografia Títulos** | `Ndot57` e `Ndot57Caps` (Estilo Matrix / Dot-font) |
-| **Tipografia Conteúdo** | Fonte nativa do sistema (`System`) com alta legibilidade |
+### 1. 💳 Home (`WalletHomeScreen`)
+- Cards Carousel (`CardsCarousel`) supporting multiple cards (Credit & Debit).
+- Limit Insights: Available limit, Total spent, Pending and Paid balances.
+- Recent transactions list linked to the active card.
+
+### 2. 🔄 Transactions (`TransactionsScreen`)
+- **Quick Header Switcher**: Seamlessly toggle between **List Mode** and **Calendar Mode**.
+- **List Mode**:
+  - Real-time description search bar.
+  - Multi-filter chips: Status (All, Pending, Paid), Person, and Tags.
+  - Quick tap to edit; long press to toggle status (Pending / Paid).
+- **Calendar Mode**:
+  - Monthly navigation with automatic month total and pending calculations.
+  - Dot-matrix calendar grid with glowing status dots (red for pending, green for paid).
+  - Tap any date to filter day-specific expenses.
+
+### 3. 📊 Analytics (`StatisticsTabScreen`)
+- Core metrics: Total recorded, percentage paid vs pending, and average ticket.
+- **Breakdown by Person**: See who paid the most and how much each participant owes.
+- **Breakdown by Category**: Ranking of most frequent tags with relative spending percentages.
+- **Last 6 Months Trend**: Proportional monthly spending comparison chart.
+
+### 4. ⚙️ Settings & Backup (`SettingsScreen`)
+- **Card Wallet Manager**: Add new cards with holder name, limit, brand, and expiration, or remove existing ones.
+- **Backup & Restore**:
+  - **Export Backup**: Generates and shares a versioned JSON backup via the native system share sheet.
+  - **Restore Backup**: Validates and imports JSON backup data, reloading the app state instantly.
+- **Reset Database**: Safe option to clear test data and restore defaults.
+
+### ➕ Floating Action Button (FAB)
+- Floating `(+)` button on Home and Transactions screens with Nothing OS styling and smooth haptic feedback (`expo-haptics`) to add expenses in seconds.
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## 📐 Architecture & Technical Documentation
 
-| Tecnologia | Finalidade |
-| :--- | :--- |
-| [**React Native 0.81**](https://reactnative.dev) | Framework para construção de apps nativos para iOS e Android |
-| [**Expo SDK 54**](https://expo.dev) | Plataforma de desenvolvimento e compilação de aplicações universais |
-| [**TypeScript 5.9**](https://www.typescriptlang.org/) | Tipagem estática para robustez e manutenção do código |
-| [**Expo Router 6**](https://docs.expo.dev/router/introduction/) | Navegação moderna e intuitiva baseada em sistema de arquivos |
-| [**AsyncStorage**](https://react-native-async-storage.github.io/async-storage/) | Banco de dados chave-valor local para persistência de dados offline |
-| [**Expo Linear Gradient**](https://docs.expo.dev/versions/latest/sdk/linear-gradient/) | Gradientes de cores de fundo |
-| [**Expo Vector Icons**](https://icons.expo.fyi/) | Conjunto de ícones nativos (Ionicons e MaterialIcons) |
-| [**Expo Haptics**](https://docs.expo.dev/versions/latest/sdk/haptics/) | Feedback tátil e vibrações nas interações |
-| [**React Native DateTimePicker**](https://github.com/react-native-datetimepicker/datetimepicker) | Componente nativo de seleção de data e hora |
-| [**React Native Reanimated 4**](https://docs.swmansion.com/react-native-reanimated/) | Motor de animações nativas fluidas |
-| [**Expo EAS Build**](https://expo.dev/eas) | Sistema de compilação em nuvem para gerar binários (.apk / .aab / .ipa) |
+Cashya uses a **Pragmatic Feature-Based Modular Architecture**, combining clear separation of concerns with TypeScript strict typing and agile development.
+
+> 📖 **Check out the full architecture and onboarding guide**:  
+> 👉 [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md)
 
 ---
 
-## 📁 Estrutura do Projeto
-
-Abaixo está o mapeamento dos principais diretórios e arquivos da aplicação:
+## 📁 Project Structure
 
 ```
 Cashya/
-├── app/                              # Rotas e páginas do Expo Router
-│   ├── (tabs)/                       # Navegação por abas
-│   │   ├── _layout.tsx               # Configuração da barra de navegação
-│   │   ├── explore.tsx               # Tela secundária / exploração
-│   │   └── index.tsx                 # Ponto de entrada que renderiza a HomeScreen
-│   ├── _layout.tsx                   # Layout raiz, carregamento de fontes e Providers
-│   └── modal.tsx                     # Rota de modal
+├── app/                              # Expo Router v6 file-based routes
+│   ├── (tabs)/                       # Tab navigation routes
+│   │   ├── _layout.tsx               # Nothing OS styled bottom tab bar
+│   │   ├── index.tsx                 # Tab 1: Home (Wallet & Cards)
+│   │   ├── transactions.tsx          # Tab 2: Transactions (List + Calendar)
+│   │   ├── statistics.tsx            # Tab 3: Analytics & Reports
+│   │   └── settings.tsx              # Tab 4: Settings, Cards & Backup
+│   └── _layout.tsx                   # Root stack layout, font loading & providers
 │
-├── assets/                           # Arquivos estáticos
-│   ├── fonts/                        # Fontes personalizadas (Ndot57, Ndot57Caps)
-│   └── images/                       # Ícones, splash screens e logotipos
+├── assets/                           # Static assets
+│   ├── fonts/                        # Ndot57 and Ndot57Caps custom fonts
+│   └── images/                       # App icons and splash screen
 │
-├── components/                       # Componentes reutilizáveis
-│   ├── screens/                      # Telas principais da aplicação
-│   │   ├── HomeScreen.tsx            # Tela principal (feed, filtros, navegação de mês)
-│   │   ├── AddExpenseScreen.tsx      # Modal de cadastro de nova despesa
-│   │   ├── EditExpenseScreen.tsx     # Modal de edição/exclusão de despesa
-│   │   └── StatisticsScreen.tsx      # Painel analítico de gastos e gráficos
-│   └── ui/                           # Componentes visuais utilitários (ícones, botões)
+├── components/                       # React Native UI components
+│   ├── cards/                        # CardsCarousel and CreditCardItem
+│   ├── dashboard/                    # MetricCard
+│   ├── screens/                      # WalletHome, Transactions, StatisticsTab, Settings...
+│   └── ui/                           # FAB (+), CalendarView
 │
-├── contexts/                         # Gerenciamento de estado global
-│   └── ExpensesContext.tsx           # Contexto e hooks com persistência AsyncStorage
+├── contexts/                         # Global state management (Context API)
+│   ├── ExpensesContext.tsx           # Expenses state & CRUD
+│   └── CardsContext.tsx              # Card wallet state & limits
 │
-├── hooks/                            # Custom React Hooks
-│   ├── useFonts.ts                   # Hook de carregamento das fontes Ndot57
-│   ├── use-color-scheme.ts           # Detecção de tema claro/escuro
-│   └── use-theme-color.ts            # Utilitário de cores baseado no tema
+├── services/                         # Infrastructure & I/O
+│   ├── storage.ts                    # Typed AsyncStorage wrapper
+│   └── backup.ts                     # Native JSON export & import
 │
-├── theme.ts                          # Configurações do Design System (cores, fontes, espaçamentos)
-├── app.json                          # Metadados e configurações do Expo e compilação
-├── eas.json                          # Configurações do Expo Application Services (Builds)
-├── package.json                      # Dependências e scripts do projeto
-└── tsconfig.json                     # Configurações do compilador TypeScript
+├── types/                            # Centralized domain types & contracts
+│   └── index.ts                      # Expense, CreditCard, BackupData...
+│
+├── utils/                            # Pure formatting utilities
+│   └── formatters.ts                 # Currency ($), dates, and key generation
+│
+├── theme.ts                          # Design System Tokens (Colors, Fonts, Spacing)
+├── docs/                             # Technical documentation
+│   └── ARCHITECTURE.md               # Complete architecture guide
+├── app.json                          # Expo configuration
+├── package.json                      # Project dependencies & scripts
+└── tsconfig.json                     # TypeScript strict configuration
 ```
 
 ---
 
-## 📦 Modelo de Dados
+## 📦 Data Models
 
-O núcleo de dados da aplicação gira em torno da interface `Expense`:
+Core data contracts are defined in `types/index.ts`:
 
 ```typescript
 export interface Expense {
-  id: string;          // Identificador único (timestamp + hash)
-  description: string; // Descrição ou nome da despesa
-  amount: number;      // Valor monetário (ex.: 150.50)
-  person: string;      // Responsável pelo pagamento / participante
-  date: Date;          // Data em que a despesa foi realizada
-  tags: string[];      // Lista de etiquetas (ex.: ["Aluguel", "Casa"])
-  paid: boolean;       // Indicador de pagamento efetuado (true / false)
+  id: string;          // Unique identifier
+  description: string; // Expense description
+  amount: number;      // Monetary amount (e.g., 150.50)
+  person: string;      // Responsible person / participant
+  date: Date;          // Date the expense occurred
+  tags: string[];      // Categorization tags (e.g., ["Rent", "Home"])
+  paid: boolean;       // Settlement indicator (true / false)
+  source?: 'manual' | 'notification' | 'import';
+  cardId?: string;     // Associated card ID
+}
+
+export interface CreditCard {
+  id: string;
+  holderName: string;
+  brand: 'visa' | 'mastercard' | 'elo' | 'generic';
+  type: 'Credit' | 'Debit';
+  lastDigits: string;
+  expiryDate: string;
+  limit: number;
+  colorAccent?: string;
 }
 ```
 
 ---
 
-## 🏁 Como Começar
+## 🏁 Getting Started
 
-### Pré-requisitos
+### Prerequisites
+- [**Node.js**](https://nodejs.org/) (v18 or higher)
+- Package manager: **npm** or **yarn**
+- [**Expo Go**](https://expo.dev/go) app installed on your physical smartphone (Android or iOS).
 
-Antes de iniciar, certifique-se de ter instalado em sua máquina:
-- [**Node.js**](https://nodejs.org/) (versão 18 ou superior recomendada)
-- Gerenciador de pacotes **npm** ou **yarn**
-- Aplicativo móvel [**Expo Go**](https://expo.dev/go) instalado em seu smartphone (Android ou iOS) para testes em tempo real via Wi-Fi.
+### Installation
 
-### Instalação
+```bash
+git clone https://github.com/yanjuca/Cashya.git
+cd Cashya
+npm install
+```
 
-1. Clone este repositório (caso ainda não tenha clonado):
-   ```bash
-   git clone https://github.com/yanjuca/Cashya.git
-   ```
-
-2. Acesse a pasta da aplicação:
-   ```bash
-   cd Cashya/Cashya
-   ```
-
-3. Instale as dependências:
-   ```bash
-   npm install
-   ```
-
-### Executando o App
-
-Inicie o servidor de desenvolvimento do Expo:
+### Running the App
 
 ```bash
 npx expo start
 ```
 
-No terminal ou na interface web aberta, você terá as seguintes opções:
-
-- **Dispositivo Físico**: Abra a câmera (no iOS) ou o app Expo Go (no Android) e escaneie o **QR Code** exibido no terminal.
-- **Emulador Android**: Pressione <kbd>a</kbd> no terminal (requer Android Studio configurado).
-- **Simulador iOS**: Pressione <kbd>i</kbd> no terminal (requer Xcode em ambiente macOS).
-- **Navegador Web**: Pressione <kbd>w</kbd> no terminal.
+In the terminal or open web interface:
+- **Physical Device**: Open Expo Go and scan the terminal **QR Code**.
+- **Android Emulator**: Press <kbd>a</kbd> in the terminal.
+- **iOS Simulator**: Press <kbd>i</kbd> in the terminal (macOS only).
+- **Web Browser**: Press <kbd>w</kbd> in the terminal.
 
 ---
 
-## 📜 Scripts Disponíveis
+## 📜 Available Scripts
 
-Dentro do diretório do projeto, você pode executar:
-
-| Comando | Descrição |
+| Command | Description |
 | :--- | :--- |
-| `npm start` ou `npx expo start` | Inicia o servidor de desenvolvimento do Expo Metro Bundler |
-| `npm run android` | Inicia o app diretamente no emulador ou dispositivo Android conectado |
-| `npm run ios` | Inicia o app diretamente no simulador iOS (somente macOS) |
-| `npm run web` | Inicia o app na versão web |
-| `npm run lint` | Executa o linter ESLint para validar boas práticas e padrões de código |
-| `npm run reset-project` | Executa o script auxiliar de reset do template Expo caso necessário |
+| `npm start` | Starts the Expo Metro Bundler development server |
+| `npm run android` | Runs the app directly on a connected Android device or emulator |
+| `npm run ios` | Runs the app on the iOS simulator (macOS) |
+| `npm run web` | Runs the app in the web browser |
+| `npm run lint` | Runs ESLint to validate code quality and best practices |
+| `npx tsc --noEmit` | Runs strict TypeScript type-checking |
 
 ---
 
-## 🏗️ Compilação & Build (EAS)
+## 🏗️ Build & Deployment (EAS)
 
-O projeto já possui o [EAS Build](https://docs.expo.dev/build/introduction/) configurado através do arquivo `eas.json`.
+The project includes [EAS Build](https://docs.expo.dev/build/introduction/) configuration in `eas.json`.
 
-Para gerar builds de produção ou teste:
+```bash
+# Preview build (Standalone APK for Android)
+eas build -p android --profile preview
 
-1. Instale a CLI global do EAS (caso não tenha):
-   ```bash
-   npm install -g eas-cli
-   ```
-
-2. Faça login na sua conta Expo:
-   ```bash
-   eas login
-   ```
-
-3. Configure ou execute uma build:
-   - **Build de Teste / Preview (APK direto para Android)**:
-     ```bash
-     eas build -p android --profile preview
-     ```
-   - **Build de Produção**:
-     ```bash
-     eas build -p android --profile production
-     ```
+# Production build
+eas build -p android --profile production
+```
 
 ---
 
-## 🗺️ Roadmap de Melhorias
+## 📄 License & Credits
 
-- [ ] Exportação de relatórios em formato CSV e PDF.
-- [ ] Suporte a múltiplas moedas com conversão automática (BRL, USD, EUR).
-- [ ] Recorrência de despesas (despesas fixas mensais automáticas).
-- [ ] Backup e restauração via arquivo JSON ou nuvem (Google Drive / iCloud).
-- [ ] Proteção do app por biometria (Face ID / Fingerprint) via `expo-local-authentication`.
-- [ ] Modo escuro / modo claro alternável nas preferências.
-
----
-
-## 📄 Licença & Créditos
-
-Desenvolvido com carinho por [Yan Juca](https://github.com/yanjuca).
-
-Distribuído sob a licença **MIT**. Consulte o arquivo de licença para mais detalhes.
+Developed with care by [Yan Juca](https://github.com/yanjuca).  
+Distributed under the **MIT** License.
 
 <div align="center">
-  <sub>Construído com ❤️, React Native e Expo.</sub>
+  <sub>Built with ❤️, React Native, and Expo.</sub>
 </div>

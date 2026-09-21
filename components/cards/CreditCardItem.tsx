@@ -41,7 +41,7 @@ export default function CreditCardItem({ card, isActive = true }: CreditCardItem
           <Text style={styles.holderName} numberOfLines={1}>
             {card.holderName.toUpperCase()}
           </Text>
-          <Text style={styles.expiryDate}>Val: {card.expiryDate}</Text>
+          <Text style={styles.expiryDate}>Exp: {card.expiryDate}</Text>
         </View>
       </View>
     </View>

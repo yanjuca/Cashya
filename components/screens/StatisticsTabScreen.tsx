@@ -23,7 +23,7 @@ export default function StatisticsTabScreen() {
     // Group by person
     const byPerson: { [key: string]: { total: number; pending: number; count: number } } = {};
     expenses.forEach((expense) => {
-      const personKey = expense.person || 'Geral';
+      const personKey = expense.person || 'General';
       if (!byPerson[personKey]) {
         byPerson[personKey] = { total: 0, pending: 0, count: 0 };
       }
@@ -37,7 +37,7 @@ export default function StatisticsTabScreen() {
     // Group by tag
     const byTag: { [key: string]: { total: number; count: number } } = {};
     expenses.forEach((expense) => {
-      const tagsToCount = expense.tags.length > 0 ? expense.tags : ['Outros'];
+      const tagsToCount = expense.tags.length > 0 ? expense.tags : ['Other'];
       tagsToCount.forEach((tag) => {
         if (!byTag[tag]) {
           byTag[tag] = { total: 0, count: 0 };
@@ -50,7 +50,7 @@ export default function StatisticsTabScreen() {
     // Monthly trend
     const byMonth: { [key: string]: number } = {};
     expenses.forEach((expense) => {
-      const monthKey = expense.date.toLocaleDateString('pt-BR', {
+      const monthKey = expense.date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
       });
@@ -88,8 +88,8 @@ export default function StatisticsTabScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>ESTATÍSTICAS</Text>
-        <Text style={styles.subtitle}>Relatório financeiro consolidado</Text>
+        <Text style={styles.title}>ANALYTICS</Text>
+        <Text style={styles.subtitle}>Consolidated financial report</Text>
       </View>
 
       <ScrollView
@@ -98,59 +98,61 @@ export default function StatisticsTabScreen() {
       >
         {/* Overview Grid */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>VISÃO GERAL</Text>
+          <Text style={styles.sectionTitle}>OVERVIEW</Text>
           <View style={styles.cardsRow}>
             <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Registrado</Text>
+              <Text style={styles.statLabel}>Total Recorded</Text>
               <Text style={styles.statValue}>{formatCurrency(stats.total)}</Text>
-              <Text style={styles.statSubtext}>{stats.count} despesas</Text>
+              <Text style={styles.statSubtext}>
+                {stats.count} {stats.count === 1 ? 'expense' : 'expenses'}
+              </Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Pago</Text>
+              <Text style={styles.statLabel}>Total Paid</Text>
               <Text style={[styles.statValue, { color: COLORS.success }]}>
                 {formatCurrency(stats.paid)}
               </Text>
-              <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% do total</Text>
+              <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% of total</Text>
             </View>
           </View>
 
           <View style={styles.cardsRow}>
             <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Pendente</Text>
+              <Text style={styles.statLabel}>Pending</Text>
               <Text style={[styles.statValue, { color: COLORS.error }]}>
                 {formatCurrency(stats.pending)}
               </Text>
-              <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% do total</Text>
+              <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% of total</Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Média por Despesa</Text>
+              <Text style={styles.statLabel}>Average per Expense</Text>
               <Text style={styles.statValue}>{formatCurrency(stats.averageExpense)}</Text>
-              <Text style={styles.statSubtext}>por lançamento</Text>
+              <Text style={styles.statSubtext}>per entry</Text>
             </View>
           </View>
         </View>
 
         {/* Breakdown by Person */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>POR RESPONSÁVEL</Text>
+          <Text style={styles.sectionTitle}>BY PERSON</Text>
           {stats.byPerson.length === 0 ? (
-            <Text style={styles.emptyText}>Sem despesas registradas</Text>
+            <Text style={styles.emptyText}>No expenses recorded</Text>
           ) : (
             stats.byPerson.map((item, index) => (
               <View key={index} style={styles.listItem}>
                 <View style={styles.listItemLeft}>
                   <Text style={styles.listItemName}>{item.name}</Text>
                   <Text style={styles.listItemSubtext}>
-                    {item.count} {item.count === 1 ? 'despesa' : 'despesas'}
+                    {item.count} {item.count === 1 ? 'expense' : 'expenses'}
                   </Text>
                 </View>
                 <View style={styles.listItemRight}>
                   <Text style={styles.listItemTotal}>{formatCurrency(item.total)}</Text>
                   {item.pending > 0 && (
                     <Text style={styles.listItemPending}>
-                      {formatCurrency(item.pending)} pendente
+                      {formatCurrency(item.pending)} pending
                     </Text>
                   )}
                 </View>
@@ -161,9 +163,9 @@ export default function StatisticsTabScreen() {
 
         {/* Breakdown by Category / Tag */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>POR CATEGORIA</Text>
+          <Text style={styles.sectionTitle}>BY CATEGORY</Text>
           {stats.byTag.length === 0 ? (
-            <Text style={styles.emptyText}>Sem categorias registradas</Text>
+            <Text style={styles.emptyText}>No categories recorded</Text>
           ) : (
             stats.byTag.map((item, index) => (
               <View key={index} style={styles.listItem}>
@@ -172,7 +174,7 @@ export default function StatisticsTabScreen() {
                     <Text style={styles.tagBadgeText}>{item.name}</Text>
                   </View>
                   <Text style={styles.listItemSubtext}>
-                    {item.count} {item.count === 1 ? 'despesa' : 'despesas'}
+                    {item.count} {item.count === 1 ? 'expense' : 'expenses'}
                   </Text>
                 </View>
                 <View style={styles.listItemRight}>
@@ -188,9 +190,9 @@ export default function StatisticsTabScreen() {
 
         {/* Monthly Trend */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ÚLTIMOS MESES</Text>
+          <Text style={styles.sectionTitle}>RECENT MONTHS</Text>
           {stats.byMonth.length === 0 ? (
-            <Text style={styles.emptyText}>Sem histórico suficiente</Text>
+            <Text style={styles.emptyText}>Not enough history</Text>
           ) : (
             stats.byMonth.map((item, index) => {
               const barWidth = `${Math.max(5, (item.total / highestMonthTotal) * 100)}%` as DimensionValue;
