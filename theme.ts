@@ -29,7 +29,13 @@ export const COLORS = {
 export const FONTS = {
   ndot: 'Ndot57',           // For app name, numbers, amounts
   ndotCaps: 'Ndot57Caps',   // For headings and labels
-  system: 'System',         // Fallback to system
+  regular: 'DMSans_400Regular', // Body regular (DM Sans)
+  medium: 'DMSans_500Medium',   // Subheadings, labels, buttons (DM Sans)
+  bold: 'DMSans_700Bold',       // Bold labels, highlights (DM Sans)
+  sans: 'DMSans_400Regular',
+  sansMedium: 'DMSans_500Medium',
+  sansBold: 'DMSans_700Bold',
+  system: 'DMSans_400Regular',  // Default to DM Sans
 };
 
 export const SPACING = {

@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   inputLabel: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.textSecondary,
     marginBottom: 8,
@@ -228,6 +229,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   modalInput: {
+    fontFamily: FONTS.regular,
     backgroundColor: '#0e0e12',
     borderWidth: 1,
     borderColor: '#2a2a32',
@@ -255,13 +257,13 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   pillOptionText: {
+    fontFamily: FONTS.medium,
     color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
   },
   pillOptionTextActive: {
+    fontFamily: FONTS.bold,
     color: '#ffffff',
-    fontWeight: '700',
   },
   inputRow: {
     flexDirection: 'row',
@@ -275,8 +277,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalSaveButtonText: {
+    fontFamily: FONTS.bold,
     color: '#ffffff',
     fontSize: 15,
-    fontWeight: '700',
   },
 });

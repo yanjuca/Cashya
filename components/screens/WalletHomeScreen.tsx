@@ -145,14 +145,7 @@ export default function WalletHomeScreen() {
               showsVerticalScrollIndicator={false}
               nestedScrollEnabled
             >
-              {sortedExpenses.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="receipt-outline" size={32} color="#303038" />
-                  <Text style={styles.emptyText}>
-                    {hasCard ? 'No transactions on this card' : 'No transactions recorded'}
-                  </Text>
-                </View>
-              ) : (
+              {sortedExpenses.length === 0 ? null : (
                 sortedExpenses.map((item) => (
                   <TouchableOpacity
                     key={item.id}
@@ -289,6 +282,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   transactionsCount: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: '#666672',
   },
@@ -326,9 +320,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   expenseDescription: {
+    fontFamily: FONTS.medium,
     fontSize: 14,
     color: '#ffffff',
-    fontWeight: '600',
     flex: 1,
     marginRight: 8,
   },
@@ -352,10 +346,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   expensePerson: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.textSecondary,
   },
   expenseDate: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: '#666672',
     marginTop: 2,
@@ -379,6 +375,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xs,
   },
   tagText: {
+    fontFamily: FONTS.regular,
     fontSize: 10,
     color: COLORS.textSecondary,
   },

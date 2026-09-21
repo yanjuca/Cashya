@@ -60,10 +60,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.textSecondary,
     marginBottom: 3,
-    fontWeight: '500',
   },
   value: {
     fontFamily: FONTS.ndot || FONTS.system,
@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   subtitle: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: COLORS.textSecondary,
   },
@@ -88,9 +89,9 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   badgeText: {
+    fontFamily: FONTS.bold,
     fontSize: 11,
     color: COLORS.textSecondary,
-    fontWeight: '600',
   },
   compactCard: {
     flex: 1,
@@ -102,10 +103,10 @@ const styles = StyleSheet.create({
     borderColor: '#24242a',
   },
   compactLabel: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.textSecondary,
     marginBottom: 4,
-    fontWeight: '500',
   },
   compactValue: {
     fontFamily: FONTS.ndot || FONTS.system,

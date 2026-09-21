@@ -213,27 +213,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* SECTION 3: STORAGE STATS & DANGER ZONE */}
+        {/* RESET DATABASE BUTTON */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>DATA & STORAGE</Text>
-
-          <View style={styles.statsCard}>
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Total Expenses Recorded</Text>
-              <Text style={styles.statValue}>{expenses.length}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Registered Cards</Text>
-              <Text style={styles.statValue}>{cards.length}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Operation Mode</Text>
-              <Text style={[styles.statValue, { color: COLORS.success }]}>100% Offline</Text>
-            </View>
-          </View>
-
           <TouchableOpacity
             style={styles.dangerButton}
             onPress={handleClearAllData}
@@ -347,6 +328,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionBtnSmallText: {
+    fontFamily: FONTS.medium,
     fontSize: 11,
     color: '#ffffff',
     fontWeight: '600',
@@ -366,6 +348,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyCardsText: {
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     fontSize: 13,
   },
@@ -391,6 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xs,
   },
   cardBrandText: {
+    fontFamily: FONTS.bold,
     fontSize: 10,
     fontWeight: '700',
     color: '#ffffff',
@@ -402,6 +386,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   cardHolder: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: COLORS.textSecondary,
     marginTop: 2,
@@ -427,6 +412,7 @@ const styles = StyleSheet.create({
     borderColor: '#24242a',
   },
   backupCardDesc: {
+    fontFamily: FONTS.regular,
     fontSize: 12,
     color: COLORS.textSecondary,
     lineHeight: 18,
@@ -447,6 +433,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backupBtnPrimaryText: {
+    fontFamily: FONTS.medium,
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 13,
@@ -464,37 +451,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   backupBtnSecondaryText: {
+    fontFamily: FONTS.medium,
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 13,
-  },
-  statsCard: {
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#24242a',
-    marginBottom: 14,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  statValue: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 15,
-    color: '#ffffff',
-  },
-  statDivider: {
-    height: 1,
-    backgroundColor: '#22222a',
-    marginVertical: 4,
   },
   dangerButton: {
     flexDirection: 'row',
@@ -508,6 +468,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dangerButtonText: {
+    fontFamily: FONTS.bold,
     color: '#ff453a',
     fontSize: 13,
     fontWeight: '600',
@@ -525,11 +486,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   aboutVersion: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: COLORS.textSecondary,
     marginBottom: 4,
   },
   aboutTagline: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: '#555560',
     textAlign: 'center',
@@ -570,11 +533,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modalSaveButtonText: {
+    fontFamily: FONTS.bold,
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 15,
   },
   restoreDesc: {
+    fontFamily: FONTS.regular,
     fontSize: 12,
     color: COLORS.textSecondary,
     marginBottom: 12,
@@ -590,6 +555,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     borderWidth: 1,
     borderColor: '#262630',
-    fontFamily: FONTS.system,
+    fontFamily: FONTS.regular,
   },
 });

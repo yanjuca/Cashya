@@ -345,8 +345,8 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   tabBarLabel: {
+    fontFamily: FONTS.medium,
     fontSize: 10,
-    fontWeight: '500',
     marginTop: 2,
     marginBottom: 0,
   },

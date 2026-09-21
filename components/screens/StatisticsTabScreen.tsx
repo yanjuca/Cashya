@@ -90,50 +90,50 @@ export default function StatisticsTabScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Overview Grid */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>OVERVIEW</Text>
-          <View style={styles.cardsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Recorded</Text>
-              <Text style={styles.statValue}>{formatCurrency(stats.total)}</Text>
-              <Text style={styles.statSubtext}>
-                {stats.count} {stats.count === 1 ? 'expense' : 'expenses'}
-              </Text>
+        {expenses.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>OVERVIEW</Text>
+            <View style={styles.cardsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Total Recorded</Text>
+                <Text style={styles.statValue}>{formatCurrency(stats.total)}</Text>
+                <Text style={styles.statSubtext}>
+                  {stats.count} {stats.count === 1 ? 'expense' : 'expenses'}
+                </Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Total Paid</Text>
+                <Text style={[styles.statValue, { color: COLORS.success }]}>
+                  {formatCurrency(stats.paid)}
+                </Text>
+                <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% of total</Text>
+              </View>
             </View>
 
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Paid</Text>
-              <Text style={[styles.statValue, { color: COLORS.success }]}>
-                {formatCurrency(stats.paid)}
-              </Text>
-              <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% of total</Text>
+            <View style={styles.cardsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Pending</Text>
+                <Text style={[styles.statValue, { color: COLORS.error }]}>
+                  {formatCurrency(stats.pending)}
+                </Text>
+                <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% of total</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Average per Expense</Text>
+                <Text style={styles.statValue}>{formatCurrency(stats.averageExpense)}</Text>
+                <Text style={styles.statSubtext}>per entry</Text>
+              </View>
             </View>
           </View>
-
-          <View style={styles.cardsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Pending</Text>
-              <Text style={[styles.statValue, { color: COLORS.error }]}>
-                {formatCurrency(stats.pending)}
-              </Text>
-              <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% of total</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Average per Expense</Text>
-              <Text style={styles.statValue}>{formatCurrency(stats.averageExpense)}</Text>
-              <Text style={styles.statSubtext}>per entry</Text>
-            </View>
-          </View>
-        </View>
+        )}
 
         {/* Breakdown by Person */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BY PERSON</Text>
-          {stats.byPerson.length === 0 ? (
-            <Text style={styles.emptyText}>No expenses recorded</Text>
-          ) : (
-            stats.byPerson.map((item, index) => (
+        {stats.byPerson.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>BY PERSON</Text>
+            {stats.byPerson.map((item, index) => (
               <View key={index} style={styles.listItem}>
                 <View style={styles.listItemLeft}>
                   <Text style={styles.listItemName}>{item.name}</Text>
@@ -150,17 +150,15 @@ export default function StatisticsTabScreen() {
                   )}
                 </View>
               </View>
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Breakdown by Category / Tag */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BY CATEGORY</Text>
-          {stats.byTag.length === 0 ? (
-            <Text style={styles.emptyText}>No categories recorded</Text>
-          ) : (
-            stats.byTag.map((item, index) => (
+        {stats.byTag.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>BY CATEGORY</Text>
+            {stats.byTag.map((item, index) => (
               <View key={index} style={styles.listItem}>
                 <View style={styles.listItemLeft}>
                   <View style={styles.tagBadge}>
@@ -177,17 +175,15 @@ export default function StatisticsTabScreen() {
                   </Text>
                 </View>
               </View>
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Monthly Trend */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>RECENT MONTHS</Text>
-          {stats.byMonth.length === 0 ? (
-            <Text style={styles.emptyText}>Not enough history</Text>
-          ) : (
-            stats.byMonth.map((item, index) => {
+        {stats.byMonth.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>RECENT MONTHS</Text>
+            {stats.byMonth.map((item, index) => {
               const barWidth = `${Math.max(5, (item.total / highestMonthTotal) * 100)}%` as DimensionValue;
               return (
                 <View key={index} style={styles.trendItem}>
@@ -198,9 +194,9 @@ export default function StatisticsTabScreen() {
                   <Text style={styles.trendValue}>{formatCurrency(item.total)}</Text>
                 </View>
               );
-            })
-          )}
-        </View>
+            })}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -250,10 +246,10 @@ const styles = StyleSheet.create({
     borderColor: '#24242a',
   },
   statLabel: {
+    fontFamily: FONTS.medium,
     fontSize: 11,
     color: COLORS.textSecondary,
     marginBottom: 6,
-    fontWeight: '500',
   },
   statValue: {
     fontFamily: FONTS.ndot || FONTS.system,
@@ -263,6 +259,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statSubtext: {
+    fontFamily: FONTS.regular,
     fontSize: 10,
     color: COLORS.textSecondary,
   },
@@ -281,12 +278,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listItemName: {
+    fontFamily: FONTS.medium,
     fontSize: 15,
     color: '#ffffff',
-    fontWeight: '600',
     marginBottom: 2,
   },
   listItemSubtext: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: COLORS.textSecondary,
   },
@@ -300,10 +298,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   listItemPending: {
+    fontFamily: FONTS.medium,
     fontSize: 11,
     color: COLORS.error,
   },
   listItemPercent: {
+    fontFamily: FONTS.medium,
     fontSize: 11,
     color: COLORS.textSecondary,
   },
@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   tagBadgeText: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: '#ffffff',
-    fontWeight: '600',
   },
   trendItem: {
     flexDirection: 'row',
@@ -352,11 +352,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     width: 80,
     textAlign: 'right',
-  },
-  emptyText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
-    paddingVertical: 14,
   },
 });

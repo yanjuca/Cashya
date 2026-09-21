@@ -388,6 +388,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   message: {
+    fontFamily: FONTS.regular,
     fontSize: 13.5,
     lineHeight: 20,
     color: COLORS.textSecondary,
@@ -421,8 +422,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   buttonText: {
+    fontFamily: FONTS.bold,
     fontSize: 14,
-    fontWeight: '700',
     letterSpacing: 0.3,
   },
   cancelButton: {
