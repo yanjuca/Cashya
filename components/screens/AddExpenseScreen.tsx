@@ -360,12 +360,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
+    fontFamily: FONTS.medium,
     fontSize: 13,
     color: COLORS.textSecondary,
     marginBottom: 8,
-    fontWeight: '500',
   },
   input: {
+    fontFamily: FONTS.regular,
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -407,6 +408,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   dateText: {
+    fontFamily: FONTS.regular,
     color: COLORS.text,
     fontSize: 15,
   },
@@ -421,6 +423,7 @@ const styles = StyleSheet.create({
   },
   tagInput: {
     flex: 1,
+    fontFamily: FONTS.regular,
     padding: 14,
     color: COLORS.text,
     fontSize: 15,
@@ -446,6 +449,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tagText: {
+    fontFamily: FONTS.medium,
     color: COLORS.text,
     fontSize: 13,
   },
@@ -472,15 +476,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   cardSelectorText: {
+    fontFamily: FONTS.medium,
     color: COLORS.textSecondary,
     fontSize: 13,
-    fontWeight: '500',
   },
   cardSelectorTextActive: {
+    fontFamily: FONTS.bold,
     color: '#ffffff',
-    fontWeight: '700',
   },
   hintText: {
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
     fontSize: 12,
     fontStyle: 'italic',
@@ -504,9 +509,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   saveButtonText: {
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     fontSize: 16,
-    fontWeight: '600',
     letterSpacing: 0.5,
   },
 });

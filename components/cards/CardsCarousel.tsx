@@ -167,12 +167,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addCardTitle: {
+    fontFamily: FONTS.medium,
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '600',
     marginBottom: 2,
   },
   addCardSubtitle: {
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     fontSize: 11,
   },

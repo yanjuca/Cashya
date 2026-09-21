@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   genericBrand: {
+    fontFamily: FONTS.bold,
     fontSize: 13,
-    fontWeight: 'bold',
     color: '#ffffff',
   },
   cardNumber: {
@@ -122,18 +122,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   cardType: {
+    fontFamily: FONTS.regular,
     fontSize: 11,
     color: COLORS.textSecondary,
-    fontWeight: '500',
   },
   rightColumn: {
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
   holderName: {
+    fontFamily: FONTS.medium,
     fontSize: 11,
     color: '#b0b0b8',
-    fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: 4,
   },

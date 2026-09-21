@@ -331,13 +331,7 @@ export default function TransactionsScreen({
             renderItem={renderExpenseItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptySubtitle}>
-                  {selectedDate ? 'No expenses for this day.' : 'No expenses this month.'}
-                </Text>
-              </View>
-            }
+            ListEmptyComponent={null}
           />
         </View>
       )}
@@ -413,6 +407,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    fontFamily: FONTS.regular,
     color: '#ffffff',
     fontSize: 14,
   },
@@ -440,9 +435,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   chipText: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.textSecondary,
-    fontWeight: '500',
   },
   chipTextActive: {
     color: '#ffffff',
@@ -459,9 +454,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#26181a',
   },
   chipClearText: {
+    fontFamily: FONTS.bold,
     fontSize: 11,
     color: COLORS.primary,
-    fontWeight: '600',
   },
   listContent: {
     paddingHorizontal: 20,
@@ -482,8 +477,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   description: {
+    fontFamily: FONTS.medium,
     fontSize: 15,
-    fontWeight: '600',
     color: '#ffffff',
     flex: 1,
     marginRight: 10,
@@ -508,11 +503,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   person: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.textSecondary,
-    fontWeight: '500',
   },
   date: {
+    fontFamily: FONTS.regular,
     fontSize: 12,
     color: '#555560',
   },
@@ -535,6 +531,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xs,
   },
   tagText: {
+    fontFamily: FONTS.regular,
     fontSize: 10,
     color: '#a0a0ab',
   },
@@ -603,9 +600,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   dateFilterChipText: {
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: '#ffffff',
-    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -613,12 +610,13 @@ const styles = StyleSheet.create({
     paddingVertical: 50,
   },
   emptyTitle: {
+    fontFamily: FONTS.medium,
     fontSize: 16,
     color: '#ffffff',
-    fontWeight: '600',
     marginTop: 12,
   },
   emptySubtitle: {
+    fontFamily: FONTS.regular,
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 4,
