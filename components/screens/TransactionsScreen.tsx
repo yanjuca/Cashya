@@ -12,23 +12,26 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../../contexts/ExpensesContext';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { Expense } from '../../types';
 import { formatCurrency, formatMonthYear, toDateKey } from '../../utils/formatters';
-import FAB from '../ui/FAB';
-import AddExpenseScreen from './AddExpenseScreen';
 import CalendarView from './CalendarView';
 import EditExpenseScreen from './EditExpenseScreen';
 
-type ViewMode = 'list' | 'calendar';
+export type ViewMode = 'list' | 'calendar';
 
-export default function TransactionsScreen() {
+export interface TransactionsScreenProps {
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
+  onCalendarGestureActive?: (active: boolean) => void;
+}
+
+export default function TransactionsScreen({
+  viewMode = 'calendar',
+  onCalendarGestureActive,
+}: TransactionsScreenProps = {}) {
   const { expenses, togglePaid } = useExpenses();
-
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [showAddExpense, setShowAddExpense] = useState(false);
   const [showEditExpense, setShowEditExpense] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
@@ -148,47 +151,8 @@ export default function TransactionsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
-
-      {/* Header with Title and Mode Toggle */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>transactions</Text>
-          <Text style={styles.headerSubtitle}>
-            {viewMode === 'list'
-              ? `${listExpenses.length} ${listExpenses.length === 1 ? 'record' : 'records'}`
-              : formatMonthYear(currentMonth)}
-          </Text>
-        </View>
-
-        {/* View Mode Toggle Switch */}
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'list' && styles.toggleButtonActive]}
-            onPress={() => setViewMode('list')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="list"
-              size={18}
-              color={viewMode === 'list' ? '#ffffff' : COLORS.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.toggleButton, viewMode === 'calendar' && styles.toggleButtonActive]}
-            onPress={() => setViewMode('calendar')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="calendar"
-              size={18}
-              color={viewMode === 'calendar' ? '#ffffff' : COLORS.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
 
       {/* VIEW MODE: LIST */}
       {viewMode === 'list' && (
@@ -343,6 +307,9 @@ export default function TransactionsScreen() {
               }
             }}
             expenses={monthExpenses}
+            onSwipeMonthLeft={nextMonth}
+            onSwipeMonthRight={previousMonth}
+            onGestureActive={onCalendarGestureActive}
           />
 
           {/* Selected Date Filter Badge */}
@@ -375,14 +342,6 @@ export default function TransactionsScreen() {
         </View>
       )}
 
-      {/* Floating Action Button (+) */}
-      <FAB onPress={() => setShowAddExpense(true)} />
-
-      {/* Add Expense Modal */}
-      <Modal visible={showAddExpense} animationType="slide" presentationStyle="fullScreen">
-        <AddExpenseScreen onClose={() => setShowAddExpense(false)} />
-      </Modal>
-
       {/* Edit Expense Modal */}
       <Modal visible={showEditExpense} animationType="slide" presentationStyle="fullScreen">
         {selectedExpense && (
@@ -395,7 +354,7 @@ export default function TransactionsScreen() {
           />
         )}
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -413,18 +372,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 14,
+    paddingBottom: 16,
   },
   headerTitle: {
     fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 26,
+    fontSize: 28,
     color: '#ffffff',
     letterSpacing: 1.5,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -496,7 +450,7 @@ const styles = StyleSheet.create({
   miniDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: BORDER_RADIUS.full,
   },
   chipClear: {
     paddingHorizontal: 10,
@@ -515,7 +469,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
@@ -537,7 +491,7 @@ const styles = StyleSheet.create({
   statusDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.primary,
   },
   statusDotPaid: {
@@ -578,7 +532,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f1f26',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: BORDER_RADIUS.xs,
   },
   tagText: {
     fontSize: 10,
@@ -623,10 +577,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#262630',
   },
   summaryLabel: {
+    fontFamily: FONTS.ndotCaps || FONTS.system,
     fontSize: 10,
     color: COLORS.textSecondary,
     marginBottom: 2,
-    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   summaryValue: {
     fontFamily: FONTS.ndot || FONTS.system,

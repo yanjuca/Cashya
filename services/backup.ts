@@ -1,4 +1,5 @@
-import { Alert, Share } from 'react-native';
+import { Share } from 'react-native';
+import { customAlert } from '../contexts/AlertContext';
 import { BackupData, CreditCard, Expense } from '../types';
 import { StorageService } from './storage';
 
@@ -22,7 +23,7 @@ export const BackupService = {
   },
 
   /**
-   * Triggers native share sheet for backup content
+   * Triggers native file share sheet with JSON content
    */
   async shareBackup(): Promise<boolean> {
     try {
@@ -37,7 +38,11 @@ export const BackupService = {
       return result.action === Share.sharedAction;
     } catch (error) {
       console.error('Error sharing backup:', error);
-      Alert.alert('Error', 'Unable to export backup at this time.');
+      customAlert({
+        title: 'Error',
+        message: 'Unable to export backup at this time.',
+        type: 'danger',
+      });
       return false;
     }
   },

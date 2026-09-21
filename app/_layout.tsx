@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
 import { ActivityIndicator } from 'react-native';
+import { AlertProvider } from '../contexts/AlertContext';
 import { CardsProvider } from '../contexts/CardsContext';
 import { ExpensesProvider } from '../contexts/ExpensesContext';
 import { useFonts } from '../hooks/useFonts';
@@ -21,16 +22,18 @@ export default function RootLayout() {
   }
 
   return (
-    <ExpensesProvider>
-      <CardsProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      </CardsProvider>
-    </ExpensesProvider>
+    <AlertProvider>
+      <ExpensesProvider>
+        <CardsProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </CardsProvider>
+      </ExpensesProvider>
+    </AlertProvider>
   );
 }

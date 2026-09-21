@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import React from 'react';
-import { Platform, StyleSheet, TouchableOpacity } from 'react-native';
-import { COLORS } from '../../theme';
+import { Platform, StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { BORDER_RADIUS, COLORS } from '../../theme';
 
 interface FABProps {
   onPress: () => void;
   bottomOffset?: number;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function FAB({ onPress, bottomOffset = 95 }: FABProps) {
+export default function FAB({ onPress, bottomOffset = 95, style }: FABProps) {
   const handlePress = () => {
     if (Platform.OS !== 'web') {
       try {
@@ -24,7 +24,7 @@ export default function FAB({ onPress, bottomOffset = 95 }: FABProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.85}
-      style={[styles.container, { bottom: bottomOffset }]}
+      style={[styles.container, { bottom: bottomOffset }, style]}
       onPress={handlePress}
     >
       <Ionicons name="add" size={30} color="#ffffff" />
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     right: 22,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',

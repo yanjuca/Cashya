@@ -3,7 +3,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Platform,
   ScrollView,
@@ -14,8 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
+import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
-import { COLORS, FONTS } from '../../theme';
+import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { Expense } from '../../types';
 
 const { height } = Dimensions.get('window');
@@ -26,11 +27,14 @@ interface EditExpenseScreenProps {
 }
 
 export default function EditExpenseScreen({ expense, onClose }: EditExpenseScreenProps) {
+  const { showAlert } = useAlert();
   const { editExpense, removeExpense } = useExpenses();
+  const { cards } = useCards();
 
   const [description, setDescription] = useState(expense.description);
   const [amount, setAmount] = useState(expense.amount.toString());
   const [person, setPerson] = useState(expense.person);
+  const [selectedCardId, setSelectedCardId] = useState<string | undefined>(expense.cardId);
   const [date, setDate] = useState(new Date(expense.date));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tagInput, setTagInput] = useState('');
@@ -49,16 +53,28 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
 
   const handleSave = async () => {
     if (!description.trim()) {
-      Alert.alert('Warning', 'Please enter a description.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a description.',
+        type: 'warning',
+      });
       return;
     }
     const parsedAmount = parseFloat(amount.replace(',', '.'));
     if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Warning', 'Please enter a valid amount.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a valid amount.',
+        type: 'warning',
+      });
       return;
     }
     if (!person.trim()) {
-      Alert.alert('Warning', 'Please enter who should pay / responsible.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter who should pay / responsible.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -69,34 +85,47 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
         person: person.trim(),
         date: date,
         tags: tags,
+        cardId: selectedCardId,
       });
 
-      Alert.alert('Success', 'Expense updated successfully!', [
-        { text: 'OK', onPress: onClose },
-      ]);
+      showAlert({
+        title: 'Success',
+        message: 'Expense updated successfully!',
+        type: 'success',
+        buttons: [{ text: 'OK', onPress: onClose }],
+      });
     } catch {
-      Alert.alert('Error', 'Unable to update expense.');
+      showAlert({
+        title: 'Error',
+        message: 'Unable to update expense.',
+        type: 'danger',
+      });
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Expense',
-      'Are you sure you want to delete this expense permanently?',
-      [
+    showAlert({
+      title: 'Delete Expense',
+      message: 'Are you sure you want to delete this expense permanently?',
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             await removeExpense(expense.id);
-            Alert.alert('Deleted', 'Expense removed successfully.', [
-              { text: 'OK', onPress: onClose },
-            ]);
+            showAlert({
+              title: 'Deleted',
+              message: 'Expense removed successfully.',
+              type: 'success',
+              buttons: [{ text: 'OK', onPress: onClose }],
+            });
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   const onDateChange = (_event: any, selectedDate?: Date) => {
@@ -159,6 +188,64 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
             />
           </View>
         </View>
+
+        {/* Card Selector */}
+        {cards.length > 0 && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Card / Account</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardSelectorRow}>
+              <TouchableOpacity
+                style={[
+                  styles.cardSelectorPill,
+                  !selectedCardId && styles.cardSelectorPillActive,
+                ]}
+                onPress={() => setSelectedCardId(undefined)}
+              >
+                <Ionicons
+                  name="cash-outline"
+                  size={14}
+                  color={!selectedCardId ? '#ffffff' : COLORS.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.cardSelectorText,
+                    !selectedCardId && styles.cardSelectorTextActive,
+                  ]}
+                >
+                  General / Cash
+                </Text>
+              </TouchableOpacity>
+
+              {cards.map((c) => {
+                const isSelected = selectedCardId === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.cardSelectorPill,
+                      isSelected && styles.cardSelectorPillActive,
+                    ]}
+                    onPress={() => setSelectedCardId(c.id)}
+                  >
+                    <Ionicons
+                      name="card-outline"
+                      size={14}
+                      color={isSelected ? '#ffffff' : COLORS.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.cardSelectorText,
+                        isSelected && styles.cardSelectorTextActive,
+                      ]}
+                    >
+                      {c.holderName} (•••• {c.lastDigits})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Person Input */}
         <View style={styles.inputGroup}>
@@ -309,7 +396,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     padding: 14,
     color: COLORS.text,
     fontSize: 15,
@@ -320,7 +407,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: 14,
   },
   currencySymbol: {
@@ -342,7 +429,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     padding: 14,
     gap: 10,
   },
@@ -356,7 +443,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     paddingRight: 8,
   },
   tagInput: {
@@ -380,7 +467,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackgroundLight,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.sm,
     paddingVertical: 6,
     paddingHorizontal: 12,
     gap: 6,
@@ -391,6 +478,34 @@ const styles = StyleSheet.create({
   },
   hintsContainer: {
     marginTop: 10,
+  },
+  cardSelectorRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  cardSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  cardSelectorPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  cardSelectorText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  cardSelectorTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
   hintText: {
     color: COLORS.textMuted,
@@ -407,7 +522,7 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },

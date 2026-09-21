@@ -13,13 +13,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardsCarousel from '../cards/CardsCarousel';
 import MetricCard from '../dashboard/MetricCard';
-import FAB from '../ui/FAB';
-import AddExpenseScreen from './AddExpenseScreen';
 import EditExpenseScreen from './EditExpenseScreen';
 import { useCards } from '../../contexts/CardsContext';
 import { Expense, useExpenses } from '../../contexts/ExpensesContext';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
+
+import AddCardModal from '../cards/AddCardModal';
 
 export default function WalletHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -27,7 +27,7 @@ export default function WalletHomeScreen() {
   const { expenses, togglePaid } = useExpenses();
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [showEditExpense, setShowEditExpense] = useState(false);
-  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
 
   // Month expenses
   const currentMonthExpenses = useMemo(() => {
@@ -39,27 +39,25 @@ export default function WalletHomeScreen() {
     );
   }, [expenses]);
 
-  // Expenses for the active card (or fallback to all expenses if no card assigned)
+  // Expenses for the active card (or all monthly expenses if no cards registered)
   const cardExpenses = useMemo(() => {
-    if (!activeCard) return currentMonthExpenses;
-    const assigned = currentMonthExpenses.filter((e) => e.cardId === activeCard.id);
-    if (assigned.length > 0) return assigned;
-    // If active card is index 0 and no expenses have cardId, treat unassigned as activeCard expenses
-    const unassigned = currentMonthExpenses.filter((e) => !e.cardId);
-    return activeCardIndex === 0 ? unassigned : [];
-  }, [currentMonthExpenses, activeCard, activeCardIndex]);
+    if (!cards || cards.length === 0) return currentMonthExpenses;
+    if (!activeCard) return [];
+    return currentMonthExpenses.filter((e) => e.cardId === activeCard.id);
+  }, [currentMonthExpenses, cards, activeCard]);
 
   // Sort card expenses by date descending
   const sortedExpenses = useMemo(() => {
     return [...cardExpenses].sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [cardExpenses]);
 
-  const cardLimit = activeCard?.limit || 3000;
+  const hasCard = !!activeCard;
+  const cardLimit = activeCard?.limit || 0;
   const totalGasto = cardExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const limiteDisponivel = Math.max(0, cardLimit - totalGasto);
+  const limiteDisponivel = hasCard ? Math.max(0, cardLimit - totalGasto) : 0;
   const pendente = cardExpenses.filter((e) => !e.paid).reduce((acc, e) => acc + e.amount, 0);
   const pago = cardExpenses.filter((e) => e.paid).reduce((acc, e) => acc + e.amount, 0);
-  const percentage = cardLimit > 0 ? Math.min(100, Math.round((totalGasto / cardLimit) * 100)) : 0;
+  const percentage = hasCard && cardLimit > 0 ? Math.min(100, Math.round((totalGasto / cardLimit) * 100)) : 0;
 
   const handleExpensePress = (item: Expense) => {
     setSelectedExpense(item);
@@ -82,23 +80,18 @@ export default function WalletHomeScreen() {
         style={[
           styles.mainContent,
           {
-            paddingTop: Math.max(insets.top, 20) + 8,
+            paddingTop: 4,
             paddingBottom: Math.max(insets.bottom, 10),
           },
         ]}
       >
-        {/* Title Section */}
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>cash</Text>
-          <Text style={styles.subtitle}>Your cards and accounts in one place.</Text>
-        </View>
-
         {/* Cards Carousel */}
         <View style={styles.carouselWrapper}>
           <CardsCarousel
             cards={cards}
             activeIndex={activeCardIndex}
             onIndexChange={setActiveCardIndex}
+            onAddCard={() => setShowAddCard(true)}
           />
         </View>
 
@@ -107,17 +100,17 @@ export default function WalletHomeScreen() {
           {/* Available limit */}
           <MetricCard
             label="Available limit"
-            value={formatCurrency(limiteDisponivel)}
-            subtitle={`of ${formatCurrency(cardLimit)}`}
-            badge={`${percentage}%`}
+            value={hasCard ? formatCurrency(limiteDisponivel) : '—'}
+            subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'No card selected'}
+            badge={hasCard ? `${percentage}%` : undefined}
           />
 
           {/* Total spent */}
           <MetricCard
             label="Total spent"
             value={formatCurrency(totalGasto)}
-            subtitle={`of ${formatCurrency(cardLimit)}`}
-            badge={`${percentage}%`}
+            subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'This month'}
+            badge={hasCard ? `${percentage}%` : undefined}
           />
 
           {/* Split Row: Pending & Paid */}
@@ -155,7 +148,9 @@ export default function WalletHomeScreen() {
               {sortedExpenses.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Ionicons name="receipt-outline" size={32} color="#303038" />
-                  <Text style={styles.emptyText}>No transactions on this card</Text>
+                  <Text style={styles.emptyText}>
+                    {hasCard ? 'No transactions on this card' : 'No transactions recorded'}
+                  </Text>
                 </View>
               ) : (
                 sortedExpenses.map((item) => (
@@ -225,13 +220,11 @@ export default function WalletHomeScreen() {
         </View>
       </View>
 
-      {/* Floating Action Button (+) */}
-      <FAB onPress={() => setShowAddExpense(true)} />
-
-      {/* Add Expense Modal */}
-      <Modal visible={showAddExpense} animationType="slide" presentationStyle="fullScreen">
-        <AddExpenseScreen onClose={() => setShowAddExpense(false)} />
-      </Modal>
+      {/* Add Card Modal */}
+      <AddCardModal
+        visible={showAddCard}
+        onClose={() => setShowAddCard(false)}
+      />
 
       {/* Edit / Details Modal */}
       <Modal visible={showEditExpense} animationType="slide" presentationStyle="fullScreen">
@@ -264,14 +257,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 32,
+    fontSize: 28,
     color: '#ffffff',
     letterSpacing: 1.5,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 4,
   },
   carouselWrapper: {
     marginBottom: 16,
@@ -296,9 +284,9 @@ const styles = StyleSheet.create({
   },
   transactionsTitle: {
     fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textSecondary,
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   transactionsCount: {
     fontSize: 11,
@@ -347,7 +335,7 @@ const styles = StyleSheet.create({
   statusDot: {
     width: 7,
     height: 7,
-    borderRadius: 3.5,
+    borderRadius: BORDER_RADIUS.full,
   },
   statusDotPaid: {
     backgroundColor: COLORS.success,
@@ -388,7 +376,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: BORDER_RADIUS.xs,
   },
   tagText: {
     fontSize: 10,

@@ -46,7 +46,7 @@ export default function MetricCard({
 const styles = StyleSheet.create({
   fullCard: {
     backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: 18,
     paddingVertical: 13,
     borderWidth: 1,
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   badgeContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.full,
     backgroundColor: '#1d1d23',
     borderWidth: 1,
     borderColor: '#2d2d35',
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   compactCard: {
     flex: 1,
     backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,

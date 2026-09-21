@@ -54,15 +54,10 @@ export function CardsProvider({ children }: { children: ReactNode }) {
   const loadCards = async () => {
     try {
       const data = await StorageService.getCards();
-      if (data && data.length > 0) {
-        setCards(data);
-      } else {
-        setCards(DEFAULT_CARDS);
-        await StorageService.saveCards(DEFAULT_CARDS);
-      }
+      setCards(data || []);
     } catch (error) {
       console.error('Error loading cards:', error);
-      setCards(DEFAULT_CARDS);
+      setCards([]);
     } finally {
       setLoading(false);
     }
