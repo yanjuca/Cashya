@@ -1,3 +1,3 @@
-from app.routers import auth, budgets, categories, statistics, transactions
+from app.routers import auth, cards, dashboard, expenses, groups, inbox, statistics, sync, users
 
-__all__ = ["auth", "budgets", "categories", "statistics", "transactions"]
+__all__ = ["auth", "cards", "dashboard", "expenses", "groups", "inbox", "statistics", "sync", "users"]
