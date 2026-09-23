@@ -1,22 +1,72 @@
 # Cashya Backend
 
-API do Cashya para gerenciamento de despesas pessoais, construída com FastAPI, SQLAlchemy e SQLite. O repositório também contém o aplicativo mobile Expo/React Native que consome esta API.
+API do Cashya para despesas pessoais e compartilhadas, construída com FastAPI, SQLAlchemy e SQLite (PostgreSQL em produção). Implementa o contrato descrito em `BACKEND_SPEC.md`: autenticação multi-dispositivo, cartões, despesas com tags, grupos, sincronização offline-first (`sync/batch`) e importação/exportação de backup. O repositório também contém o aplicativo mobile Expo/React Native que consome esta API.
 
 ## Visão geral
 
-O backend oferece:
+- Contas com e-mail + senha (Argon2 via `pwdlib`), `accessToken` JWT e `refreshToken` opaco com rotação e revogação.
+- Perfil: troca de nome, e-mail (exige senha atual), avatar, senha e exclusão de conta.
+- Cartões de crédito/débito com limite, arquivamento e soft delete (despesas vinculadas ficam com `cardId = null`).
+- Despesas com `person`, `tags[]`, `paid`, `source`, `cardId`, `groupId`, UUID gerado pelo cliente, soft delete e Last-Write-Wins.
+- Grupos para despesas compartilhadas (casal, república, viagem) com saldo por pessoa.
+- Sincronização: `POST /sync/batch` (mutations + `serverChanges` + `conflicts`), `since` nas listagens, `import-backup` e `export-backup`.
+- Telas do app: `dashboard/summary` (Home/Carteira), `expenses/calendar` (Calendário), `expenses` com filtros (Despesas), `users/me` (Perfil/Configurações).
+- Caixa de entrada de transações capturadas de notificações e estatísticas por pessoa/tag/mês.
+- Todas as rotas em `/api/v1`, envelope `{ success, data, message }`, erros normalizados, OpenAPI em `/docs`.
+- CORS configurável, limite de corpo de requisição, rate limit de autenticação e cabeçalhos HTTP de segurança.
 
-- Cadastro e autenticação de usuários com JWT.
-- Hash de senhas usando Argon2 via `pwdlib`.
-- CRUD de despesas e transações.
-- Sincronização incremental para o aplicativo mobile.
-- Caixa de entrada para transações pendentes.
-- Categorias personalizadas e orçamentos mensais.
-- Estatísticas por pessoa, tag e mês.
-- Análise de gastos, previsão e recomendações de economia.
-- Documentação OpenAPI interativa.
-- SQLite por padrão, com suporte a bancos compatíveis com SQLAlchemy.
-- CORS configurável, limite de requisição, rate limit de autenticação e cabeçalhos HTTP de segurança.
+## Novidades desta versão (contrato `/api/v1`)
+
+Esta versão adapta o backend ao `BACKEND_SPEC.md` (modelo local-first → nuvem com sincronização) e aos requisitos funcionais do app.
+
+### O que foi adicionado
+
+| Área | Mudança |
+| --- | --- |
+| Autenticação | `refreshToken` com rotação (`POST /auth/refresh`), `POST /auth/logout`, `deviceName` opcional por sessão. |
+| Perfil | `GET/PATCH /users/me`, `POST /users/me/change-password`, `DELETE /users/me`; campos `avatarUrl` e `updatedAt` no usuário. |
+| Cartões | Nova entidade `Card` (`/cards`) com limite, marca, tipo, arquivamento, soft delete e `GET /cards/:id/summary`. |
+| Despesas | Campos `cardId` e `groupId`; método `PATCH` parcial; filtros `searchText`, `status`, `cardId`, `groupId`, `startDate`, `endDate`; paginação com `totalPages`/`hasNext`; `GET /expenses/calendar`. |
+| Grupos | Entidades `Group`/`GroupMember` (`/groups`) para despesas compartilhadas, com saldo por pessoa. |
+| Sincronização | `POST /sync/batch` (mutations + `serverChanges` + `conflicts` com Last-Write-Wins), `POST /sync/import-backup`, `GET /sync/export-backup`. |
+| Home / Carteira | `GET /dashboard/summary` com limite total, disponível, gasto, pendente, pago e resumo por cartão. |
+| Caixa de entrada | `POST /inbox` para enfileirar transações capturadas de notificações. |
+| Banco | Migração `20260921_0002`: tabelas `cards`, `groups`, `group_members`, `refresh_tokens`; colunas `expenses.card_id`, `expenses.group_id`, `users.avatar_url`, `users.updated_at`; novos índices. |
+
+### Mudanças que quebram compatibilidade
+
+| Antes | Agora |
+| --- | --- |
+| Rotas na raiz (`/auth/login`, `/expenses`, `/sync`, `/inbox`, `/statistics`) | Todas as rotas sob `/api/v1` (configurável por `API_V1_PREFIX`). |
+| Login/cadastro retornavam `data.token` | Retornam `data.accessToken`, `data.refreshToken`, `data.tokenType`, `data.expiresIn` e `data.user`. |
+| `POST /sync` com `created`/`updated`/`deletedIds` e resposta `pulled` | `POST /sync/batch` com `mutations[]` e resposta `serverChanges`/`conflicts`. |
+| `GET /expenses` com `paid=true|false` e `until` | `status=all|pending|paid`; use `startDate`/`endDate` para intervalo e `since` para delta sync. |
+| `category_id` na despesa | Removido; use `tags[]`, `cardId` e `groupId`. |
+| Rotas `/transactions`, `/categories` e `/budgets` | Removidas (não fazem parte do contrato). A migração 0002 apaga as tabelas `categories` e `budgets`. |
+| `DELETE /expenses/:id` retornava só `message` | Retorna `{ id, deletedAt }`. |
+| Senha: mínimo 8 caracteres | Mínimo 8 caracteres com letras **e** números. |
+| Rate limit em login e cadastro | Também em `refresh`; limites configuráveis por variáveis de ambiente. |
+| OpenAPI em `/openapi.json` | `/api/v1/openapi.json` (Swagger continua em `/docs`). |
+
+### Como migrar um ambiente existente
+
+1. Atualize as dependências: `pip install -r requirements.txt` (FastAPI 0.141 e `python-jose` 3.5, que corrige CVEs da 3.3).
+2. Adicione `REFRESH_TOKEN_EXPIRE_DAYS` ao `.env` (veja `.env.example`).
+3. Rode `alembic upgrade head` (testado com upgrade e downgrade sobre o banco da versão anterior).
+4. Atualize o cliente: o `api.ts` do app já usa `/api/v1`, guarda `accessToken`/`refreshToken` e converte a resposta de `sync/batch` para o formato que o `ExpensesContext` consome.
+5. Usuários já cadastrados continuam válidos; apenas precisam fazer login novamente para receber um `refreshToken`.
+
+### Mapa de telas do app → endpoints
+
+| Tela | Endpoints |
+| --- | --- |
+| Login | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` |
+| Perfil / Configurações | `GET /users/me`, `PATCH /users/me` (nome, e-mail), `POST /users/me/change-password`, `POST /auth/logout`, `DELETE /users/me` |
+| Home / Carteira | `GET /dashboard/summary`, `GET /cards`, `GET /cards/:id/summary`, `POST/PATCH/DELETE /cards/:id` |
+| Calendário | `GET /expenses/calendar?month&year`, `GET /expenses?date=YYYY-MM-DD` |
+| Despesas | `GET /expenses` (filtros), `POST /expenses`, `PUT/PATCH /expenses/:id`, `PATCH /expenses/:id/toggle-paid`, `DELETE /expenses/:id` |
+| Estatísticas | `GET /statistics`, `GET /expenses/by-person`, `GET /expenses/by-tag`, `GET /expenses/monthly-trend` |
+| Offline / backup | `POST /sync/batch`, `GET /expenses?since=`, `POST /sync/import-backup`, `GET /sync/export-backup` |
 
 ## Estrutura do projeto
 
@@ -25,19 +75,19 @@ Cashya/
 ├── app/                       # Aplicativo Expo/React Native
 ├── components/                # Componentes e telas mobile
 ├── contexts/                  # Estado compartilhado
-├── api.ts                    # Cliente TypeScript da API
+├── api.ts                    # Cliente TypeScript da API (/api/v1)
 ├── package.json
-├── README.md                 # Esta documentação
 └── cashya-api/
     ├── app/
-    │   ├── core/             # Configuração, banco e segurança
-    │   ├── models/           # Modelos SQLAlchemy
-    │   ├── routers/          # Rotas HTTP
-    │   ├── schemas/          # Schemas Pydantic
-    │   ├── services/         # Regras de negócio
+    │   ├── core/             # Configuração, banco, segurança e serialização
+    │   ├── models/           # User, Card, Expense, Group, GroupMember, RefreshToken, PendingTransaction
+    │   ├── routers/          # auth, users, cards, expenses, groups, sync, inbox, dashboard, statistics
+    │   ├── schemas/          # Contratos Pydantic (camelCase)
+    │   ├── services/         # Regras de negócio (auth, cards, expenses, groups, sync)
     │   └── main.py           # Aplicação FastAPI
-    ├── migrations/           # Configuração e versões Alembic
-    ├── tests/                # Testes automatizados
+    ├── migrations/           # Alembic (0001 contrato de despesas, 0002 cartões/grupos/refresh tokens)
+    ├── tests/                # Testes automatizados (pytest)
+    ├── .env.example
     ├── Dockerfile
     ├── requirements.txt
     └── README.md
@@ -47,10 +97,7 @@ Cashya/
 
 - Python 3.12 ou superior.
 - `pip` e `venv`.
-- Git.
 - Docker opcional.
-
-O SQLite já está incluído no Python. Para produção, recomenda-se um banco gerenciado e a configuração de `DATABASE_URL` correspondente.
 
 ## Instalação local
 
@@ -76,27 +123,20 @@ pip install -r requirements.txt
 
 ## Configuração de ambiente
 
-A aplicação lê `cashya-api/.env` e também aceita variáveis de ambiente do sistema. Crie esse arquivo com:
-
-```dotenv
-DATABASE_URL=sqlite:///./cashya.db
-SECRET_KEY=troque-por-uma-chave-aleatoria-com-pelo-menos-32-caracteres
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-JWT_ISSUER=cashya-api
-JWT_AUDIENCE=cashya-app
-CORS_ORIGINS=http://localhost:8081,http://127.0.0.1:8081
-MAX_REQUEST_BODY_BYTES=1048576
-```
+Copie `.env.example` para `.env` e ajuste os valores:
 
 | Variável | Padrão | Descrição |
 | --- | --- | --- |
-| `DATABASE_URL` | `sqlite:///./cashya.db` | URL de conexão do SQLAlchemy. |
-| `SECRET_KEY` | vazio | Chave para assinar JWT; exige pelo menos 32 caracteres imprevisíveis. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Expiração do token, entre 5 e 1440 minutos. |
-| `JWT_ISSUER` | `cashya-api` | Emissor validado no JWT. |
-| `JWT_AUDIENCE` | `cashya-app` | Público validado no JWT. |
+| `DATABASE_URL` | `sqlite:///./cashya.db` | URL de conexão do SQLAlchemy (ex.: `postgresql+psycopg://...`). |
+| `SECRET_KEY` | vazio | Chave de assinatura do JWT; exige pelo menos 32 caracteres imprevisíveis. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Vida do `accessToken`, entre 5 e 1440 minutos. |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Vida do `refreshToken`, entre 1 e 365 dias. |
+| `JWT_ISSUER` / `JWT_AUDIENCE` | `cashya-api` / `cashya-app` | Emissor e público validados no JWT. |
 | `CORS_ORIGINS` | `http://localhost:8081,http://127.0.0.1:8081` | Origens permitidas separadas por vírgula. |
 | `MAX_REQUEST_BODY_BYTES` | `1048576` | Tamanho máximo do corpo de requisições de escrita. |
+| `AUTH_RATE_LIMIT_ATTEMPTS` / `AUTH_RATE_LIMIT_WINDOW_SECONDS` | `10` / `60` | Rate limit por IP em login, cadastro e refresh. |
+| `API_V1_PREFIX` | `/api/v1` | Prefixo de todas as rotas. |
+| `ENVIRONMENT`, `EXPOSE_DOCS`, `GLOBAL_RATE_LIMIT_PER_MINUTE`, `REQUEST_SIGNING_SECRET`, `MIN_CLIENT_VERSION`, `TRUST_PROXY_HEADERS`, `HSTS_ENABLED` | ver seção de hardening | Camada anti engenharia reversa. |
 
 Gere uma chave segura com:
 
@@ -104,35 +144,22 @@ Gere uma chave segura com:
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Nunca versione `.env`, chaves secretas ou bancos locais. Esses arquivos são protegidos pelo `.gitignore`.
+Nunca versione `.env`, chaves secretas ou bancos locais.
 
 ## Executando a API
 
-Com o ambiente virtual ativado e o `.env` criado:
-
 ```powershell
 cd cashya-api
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Endereços padrão:
-
-- API: <http://127.0.0.1:8000>
-- Health check: <http://127.0.0.1:8000/>
+- Health check: <http://127.0.0.1:8000/api/v1/health> (ou `/`)
 - Swagger UI: <http://127.0.0.1:8000/docs>
 - ReDoc: <http://127.0.0.1:8000/redoc>
-- OpenAPI JSON: <http://127.0.0.1:8000/openapi.json>
+- OpenAPI JSON: <http://127.0.0.1:8000/api/v1/openapi.json>
 
-O health check retorna:
-
-```json
-{
-  "status": "ok",
-  "service": "cashya-api"
-}
-```
-
-As tabelas são criadas durante o startup. Para alterações estruturais versionadas, use o Alembic.
+O startup também cria tabelas/colunas ausentes em bancos SQLite locais, mas em produção execute `alembic upgrade head` como etapa de deploy.
 
 ## Docker
 
@@ -142,189 +169,178 @@ docker build -t cashya-api .
 docker run --rm -p 8000:8000 --env-file .env -v "${PWD}\data:/app/data" cashya-api
 ```
 
-Para persistir o SQLite no container:
-
-```dotenv
-DATABASE_URL=sqlite:///./data/cashya.db
-```
-
-Em produção, forneça secrets por variáveis do ambiente ou pelo provedor de deploy, nunca dentro da imagem.
+Para persistir o SQLite no container use `DATABASE_URL=sqlite:///./data/cashya.db`.
 
 ## Integração com o aplicativo mobile
 
-O cliente está em `api.ts` e utiliza `EXPO_PUBLIC_API_URL` quando definida. Sem ela, os endereços padrão são:
+O cliente está em `api.ts`, já apontando para `/api/v1`, e usa `EXPO_PUBLIC_API_URL` quando definida:
 
 | Ambiente | URL |
 | --- | --- |
-| Expo Web | `http://127.0.0.1:8000` |
-| Simulador iOS | `http://127.0.0.1:8000` |
+| Expo Web / Simulador iOS | `http://127.0.0.1:8000` |
 | Emulador Android | `http://10.0.2.2:8000` |
 | Celular físico | IP local do computador, como `http://192.168.0.10:8000` |
 
-Exemplo:
-
-```powershell
-$env:EXPO_PUBLIC_API_URL="http://192.168.0.10:8000"
-npm start
-```
-
-O aplicativo gera credenciais locais do dispositivo, registra o usuário automaticamente e armazena o JWT para as próximas requisições.
+Enquanto a tela de login não existe, o app cria uma conta de dispositivo automaticamente, guarda `accessToken` e `refreshToken` no AsyncStorage e renova a sessão via `/auth/refresh`.
 
 ## Autenticação
 
-Rotas protegidas exigem:
-
-```http
-Authorization: Bearer <token>
-```
-
-### Cadastro
-
-```http
-POST /auth/register
-Content-Type: application/json
-
-{
-  "email": "usuario@example.com",
-  "password": "uma-senha-forte",
-  "name": "Usuário Cashya"
-}
-```
-
-### Login
-
-```http
-POST /auth/login
-Content-Type: application/json
-
-{
-  "email": "usuario@example.com",
-  "password": "uma-senha-forte"
-}
-```
-
-As respostas incluem o token em `data.token`:
-
-```http
-GET /auth/me
-Authorization: Bearer <token>
-```
-
-O JWT valida emissor, audiência, expiração e usuário associado. Login e cadastro possuem rate limit por IP.
-
-## Endpoints
-
-Todas as rotas abaixo, exceto health check, cadastro e login, exigem autenticação.
-
-### Saúde e autenticação
+Rotas protegidas exigem `Authorization: Bearer <accessToken>`.
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
-| `GET` | `/` | Verifica se a API está disponível. |
-| `POST` | `/auth/register` | Cria usuário e retorna JWT. |
-| `POST` | `/auth/login` | Autentica usuário e retorna JWT. |
-| `GET` | `/auth/me` | Retorna o usuário autenticado. |
+| `POST` | `/api/v1/auth/register` | Cria a conta. Body: `email`, `name`, `password` (mín. 8, letras e números), `deviceName?`. |
+| `POST` | `/api/v1/auth/login` | Retorna `accessToken`, `refreshToken`, `expiresIn` e `user`. |
+| `POST` | `/api/v1/auth/refresh` | Troca `refreshToken` por um novo par (o anterior é revogado; reuso revoga todos). |
+| `POST` | `/api/v1/auth/logout` | Revoga o `refreshToken` informado ou, com `allDevices: true`, todos. |
+| `GET` | `/api/v1/auth/me` | Alias de `/users/me`. |
 
-### Despesas
-
-| Método | Rota | Descrição |
-| --- | --- | --- |
-| `GET` | `/expenses` | Lista despesas com filtros e paginação. |
-| `POST` | `/expenses` | Cria ou restaura uma despesa. |
-| `GET` | `/expenses/{expense_id}` | Consulta uma despesa. |
-| `PUT` | `/expenses/{expense_id}` | Atualiza uma despesa. |
-| `PATCH` | `/expenses/{expense_id}/toggle-paid` | Alterna o pagamento. |
-| `DELETE` | `/expenses/{expense_id}` | Exclui logicamente. |
-| `GET` | `/expenses/summary` | Total, pagos, pendentes, quantidade e média mensal. |
-| `GET` | `/expenses/by-person` | Agrupa por pessoa. |
-| `GET` | `/expenses/by-tag` | Agrupa por tag. |
-| `GET` | `/expenses/monthly-trend` | Retorna tendência mensal. |
-
-Filtros de `GET /expenses`: `month`, `year`, `date`, `person`, `tag`, `paid`, `since`, `until`, `page` e `limit`. O limite padrão é 50 e o máximo é 100.
-
-Exemplo de criação:
-
-```bash
-curl -X POST http://127.0.0.1:8000/expenses \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "Mercado",
-    "amount": 125.90,
-    "person": "Família",
-    "date": "2026-09-11T18:30:00Z",
-    "tags": ["alimentação"],
-    "paid": true,
-    "source": "manual"
-  }'
-```
-
-Campos: `description` (1-255 caracteres), `amount` (positivo, duas casas decimais), `person` (1-120 caracteres), `date` (ISO 8601), `tags` (até 30), `paid` e `source` (`manual`, `notification` ou `import`). O `id` é opcional e permite sincronização idempotente.
-
-### Sincronização e caixa de entrada
-
-| Método | Rota | Descrição |
-| --- | --- | --- |
-| `POST` | `/sync` | Envia alterações locais e recebe alterações do servidor. |
-| `GET` | `/inbox` | Lista transações pendentes. |
-| `POST` | `/inbox/{pending_id}/confirm` | Confirma uma pendência como despesa. |
-| `DELETE` | `/inbox/{pending_id}` | Descarta uma pendência. |
-
-Payload de sincronização:
-
-```json
-{
-  "lastSyncedAt": "2026-09-11T15:00:00Z",
-  "created": [],
-  "updated": [],
-  "deletedIds": []
-}
-```
-
-A resposta contém `serverTime`, `pulled.createdOrUpdated` e `pulled.deletedIds`. Exclusões são lógicas para que clientes offline recebam a remoção na próxima sincronização.
-
-### Transações
-
-| Método | Rota | Descrição |
-| --- | --- | --- |
-| `GET` | `/transactions` | Lista, opcionalmente filtrando `month=YYYY-MM`. |
-| `POST` | `/transactions` | Cria uma transação. |
-| `GET` | `/transactions/{transaction_id}` | Consulta uma transação. |
-| `PATCH` | `/transactions/{transaction_id}` | Atualiza uma transação. |
-| `DELETE` | `/transactions/{transaction_id}` | Remove uma transação. |
-| `POST` | `/transactions/{transaction_id}/paid` | Alterna o pagamento. |
-
-### Categorias e orçamentos
-
-| Método | Rota | Descrição |
-| --- | --- | --- |
-| `GET` | `/categories` | Lista categorias do usuário. |
-| `POST` | `/categories` | Cria uma categoria. |
-| `DELETE` | `/categories/{category_id}` | Remove uma categoria. |
-| `GET` | `/budgets` | Lista orçamentos com gasto calculado. |
-| `POST` | `/budgets` | Cria orçamento mensal. |
-| `PATCH` | `/budgets/{budget_id}` | Atualiza orçamento. |
-| `DELETE` | `/budgets/{budget_id}` | Remove orçamento. |
-
-### Estatísticas
-
-| Método | Rota | Descrição |
-| --- | --- | --- |
-| `GET` | `/statistics` | Resumo, agrupamentos e histórico mensal. |
-
-## Respostas e erros
-
-Rotas de despesas e sincronização usam envelopes:
+Resposta de `register`/`login`/`refresh`:
 
 ```json
 {
   "success": true,
-  "data": {},
-  "message": "Optional message"
+  "data": {
+    "accessToken": "<jwt>",
+    "refreshToken": "<opaco>",
+    "tokenType": "Bearer",
+    "expiresIn": 3600,
+    "user": { "id": "...", "email": "...", "name": "...", "avatarUrl": null, "createdAt": "...", "updatedAt": null }
+  }
 }
 ```
 
-Erros são normalizados assim:
+## Endpoints
+
+### Usuário / Perfil (`/api/v1/users`)
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/users/me` | Perfil do usuário logado. |
+| `PATCH` | `/users/me` | Altera `name`, `avatarUrl` ou `email` (este exige `currentPassword`). |
+| `POST` | `/users/me/change-password` | `currentPassword` + `newPassword`; encerra as sessões dos outros dispositivos. |
+| `DELETE` | `/users/me` | Exclui a conta e todos os dados (exige `password`). |
+
+### Cartões (`/api/v1/cards`)
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/cards?includeArchived=false` | Lista os cartões do usuário. |
+| `POST` | `/cards` | Cadastra cartão (`id` do cliente opcional). |
+| `GET` | `/cards/:id` | Detalhes. |
+| `GET` | `/cards/:id/summary?month&year` | `limit`, `spent`, `pending`, `paid`, `available`, `usagePercent`. |
+| `PUT` / `PATCH` | `/cards/:id` | Substitui ou atualiza parcialmente (`limit`, `holderName`, `isArchived`...). |
+| `DELETE` | `/cards/:id` | Soft delete; despesas vinculadas ficam com `cardId = null`. |
+
+Campos: `holderName`, `brand` (`visa|mastercard|elo|generic`), `type` (`Credit|Debit`), `lastDigits` (até 4 dígitos), `expiryDate` (`MM/YY`), `limit`, `colorAccent` (hex, padrão `#ff453a`), `isArchived`.
+
+### Despesas (`/api/v1/expenses`)
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/expenses` | Lista paginada. Filtros: `page`, `limit`, `searchText`, `person`, `tag`, `status` (`all|pending|paid`), `cardId`, `groupId`, `startDate`, `endDate`, `since` (delta sync, inclui `deletedAt`), `month`, `year`, `date`. |
+| `POST` | `/expenses` | Cria (idempotente quando o `id` do cliente é reenviado). |
+| `GET` | `/expenses/:id` | Detalhes. |
+| `PUT` / `PATCH` | `/expenses/:id` | Substitui ou atualiza parcialmente. |
+| `PATCH` | `/expenses/:id/toggle-paid` | Alterna `paid` e retorna `{ id, paid, updatedAt }`. |
+| `DELETE` | `/expenses/:id` | Soft delete (`deletedAt`). |
+| `GET` | `/expenses/summary?month&year` | `total`, `paid`, `pending`, `count`, `average`. |
+| `GET` | `/expenses/calendar?month&year` | Totais por dia para a tela Calendário. |
+| `GET` | `/expenses/by-person`, `/expenses/by-tag`, `/expenses/monthly-trend` | Agrupamentos. |
+
+Regras: `amount > 0` (armazenado como `numeric(12,2)`), `tags` sem duplicatas (máx. 30), `cardId` precisa ser um cartão ativo do usuário, `groupId` precisa ser um grupo do qual o usuário é membro. Despesas de grupo são visíveis a todos os membros.
+
+### Grupos (`/api/v1/groups`)
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` / `POST` | `/groups` | Lista ou cria grupo (criador vira `owner`). |
+| `GET` / `PATCH` / `DELETE` | `/groups/:id` | Detalhes, renomear (owner) e excluir (owner; despesas voltam a ser pessoais). |
+| `POST` | `/groups/:id/members` | Adiciona membro por `email` (owner). |
+| `DELETE` | `/groups/:id/members/:userId` | Owner remove um membro ou o próprio membro sai. |
+| `GET` | `/groups/:id/expenses?status&page&limit` | Despesas compartilhadas. |
+| `GET` | `/groups/:id/balance` | Totais por pessoa (quem deve o quê). |
+
+### Sincronização e backup (`/api/v1/sync`)
+
+`POST /sync/batch`
+
+```json
+{
+  "lastSyncTimestamp": "2026-09-20T10:00:00Z",
+  "mutations": [
+    { "type": "CREATE_EXPENSE", "data": { "id": "uuid", "description": "...", "amount": 10, "person": "...", "date": "..." } },
+    { "type": "UPDATE_EXPENSE", "id": "uuid", "data": { "paid": true }, "clientUpdatedAt": "2026-09-21T12:00:00Z" },
+    { "type": "DELETE_EXPENSE", "id": "uuid" },
+    { "type": "TOGGLE_PAID", "id": "uuid" },
+    { "type": "CREATE_CARD", "data": { "...": "..." } },
+    { "type": "UPDATE_CARD", "id": "uuid", "data": { "limit": 6000 } },
+    { "type": "DELETE_CARD", "id": "uuid" }
+  ]
+}
+```
+
+Resposta: `{ "syncedAt", "applied": [{type,id}], "serverChanges": { "expenses": [...], "cards": [...] }, "conflicts": [{type,id,reason,server}] }`. Conflitos seguem Last-Write-Wins por `updatedAt`: se `clientUpdatedAt` for mais antigo que a versão do servidor, a mutação é rejeitada e a cópia do servidor vem em `server`. `serverChanges` inclui registros com `deletedAt` para propagar exclusões.
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `POST` | `/sync/import-backup` | Recebe o JSON `BackupData` (`version`, `exportedAt`, `cards`, `expenses`) e faz upsert por `id`. |
+| `GET` | `/sync/export-backup` | Exporta os dados no mesmo formato. |
+
+### Caixa de entrada (`/api/v1/inbox`)
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` / `POST` | `/inbox` | Lista ou enfileira transação capturada de notificação. |
+| `POST` | `/inbox/:id/confirm` | Converte em despesa (`source = notification`). |
+| `DELETE` | `/inbox/:id` | Descarta. |
+
+### Dashboard e estatísticas
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/v1/dashboard/summary?month&year&recent` | Home/Carteira: `totalLimit`, `availableLimit`, `totalSpent`, `pending`, `paid`, `cards[]` com resumo e `recentExpenses`. |
+| `GET` | `/api/v1/statistics` | Resumo, agrupamentos por pessoa/tag e histórico mensal. |
+
+## Camada anti engenharia reversa (`app/core/hardening.py`)
+
+Um backend público pode ser "mapeado" por quem tenta clonar o app, replicar requisições ou enumerar contas. Esta camada eleva o custo desses ataques. Tudo é configurado por variáveis de ambiente e desligado por padrão em desenvolvimento (exceto headers e rate limit global).
+
+| Defesa | Como funciona | Configuração |
+| --- | --- | --- |
+| Assinatura de requisições (HMAC-SHA256) | O app envia `X-Cashya-Signature`, `X-Cashya-Timestamp` e `X-Cashya-Nonce`. A assinatura cobre `MÉTODO
+PATH
+TIMESTAMP
+NONCE
+SHA256(BODY)` com um segredo compartilhado; requisições sem assinatura, com corpo alterado ou fora da janela de tempo recebem `401 INVALID_SIGNATURE`. Nonces são lembrados para bloquear **replay**. | `REQUEST_SIGNING_SECRET` (≥ 32 chars) no backend e `EXPO_PUBLIC_API_SIGNING_KEY` no app (`signing.ts`). `REQUEST_SIGNATURE_MAX_SKEW_SECONDS` define a janela. |
+| Versão mínima do cliente | Builds antigas/vazadas do app são recusadas com `426 UPGRADE_REQUIRED`. O app envia `X-Client-Version` a partir do `app.json`. | `MIN_CLIENT_VERSION=1.2.0` |
+| Docs ocultos em produção | `/docs`, `/redoc` e `/api/v1/openapi.json` não existem quando `ENVIRONMENT=production` (ou `EXPOSE_DOCS=false`). | `ENVIRONMENT`, `EXPOSE_DOCS` |
+| Rate limit global | Limite por IP em todas as rotas `/api/v1` (além do limite específico de auth). | `GLOBAL_RATE_LIMIT_PER_MINUTE` (0 desliga); `TRUST_PROXY_HEADERS=true` só atrás de proxy confiável. |
+| Sem fingerprint / sem vazamento | Header `Server: cashya` no lugar de `uvicorn`; erros inesperados retornam `500 INTERNAL_ERROR` genérico (detalhes só no log); CSP `default-src 'none'`, `X-Robots-Tag: noindex`, `Cross-Origin-Resource-Policy`. | Automático; `HSTS_ENABLED=true` quando houver HTTPS. |
+| Anti-enumeração por tempo | O login verifica um hash fictício quando o e-mail não existe, então "usuário inexistente" e "senha errada" demoram o mesmo e respondem igual. | Automático. |
+
+### Como ativar a assinatura
+
+1. Gere um segredo: `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+2. Backend: `REQUEST_SIGNING_SECRET=<segredo>` no `.env`.
+3. App: `EXPO_PUBLIC_API_SIGNING_KEY=<segredo>` no `.env` do Expo (veja `.env.example` na raiz do app) e gere um novo build.
+4. Para rotacionar um segredo vazado, troque os dois valores e publique o app; builds antigas podem ser bloqueadas com `MIN_CLIENT_VERSION`.
+
+### Limites (seja realista)
+
+- O segredo fica dentro do app; alguém com ferramentas de análise consegue extraí-lo. A assinatura barra scripts, replay e clientes genéricos, não um atacante dedicado. Para atestar que o binário é o oficial use **Play Integrity** (Android) / **App Attest** (iOS) — pontos de extensão naturais para o mesmo middleware.
+- Rate limit e cache de nonces são em memória (por processo). Com várias réplicas use Redis.
+- Sempre sirva a API com HTTPS; sem TLS, nenhuma dessas camadas impede a leitura do tráfego.
+
+## Respostas e erros
+
+Sucesso:
+
+```json
+{ "success": true, "data": {}, "message": "Optional message" }
+```
+
+Erro:
 
 ```json
 {
@@ -332,33 +348,26 @@ Erros são normalizados assim:
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Request validation failed",
-    "details": [{
-      "field": "body.amount",
-      "issue": "Input should be greater than 0"
-    }]
+    "details": [{ "field": "amount", "issue": "Input should be greater than 0" }]
   }
 }
 ```
 
-Códigos comuns: `BAD_REQUEST` (400), `UNAUTHORIZED` (401), `NOT_FOUND` (404), `CONFLICT` (409), `PAYLOAD_TOO_LARGE` (413), `VALIDATION_ERROR` (422) e `RATE_LIMITED` (429).
+Códigos: `BAD_REQUEST` (400), `UNAUTHORIZED` / `INVALID_SIGNATURE` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `PAYLOAD_TOO_LARGE` (413), `VALIDATION_ERROR` (422), `UPGRADE_REQUIRED` (426), `RATE_LIMITED` (429) e `INTERNAL_ERROR` (500). Datas são ISO 8601 em UTC com sufixo `Z`; valores monetários são números com duas casas.
 
 ## Banco de dados e migrações
-
-O banco padrão fica em `cashya-api/cashya.db` e não deve ser versionado. Para aplicar migrações:
 
 ```powershell
 cd cashya-api
 alembic upgrade head
 ```
 
-Para criar uma revisão após alterar os modelos:
+Revisões: `20260909_0001` (contrato de despesas) e `20260921_0002` (cartões, grupos, refresh tokens, `card_id`/`group_id`, remoção de categorias/orçamentos). Para criar uma revisão após alterar os modelos:
 
 ```powershell
 alembic revision --autogenerate -m "describe schema change"
 alembic upgrade head
 ```
-
-O startup garante a existência das tabelas, mas em produção prefira executar `alembic upgrade head` como etapa explícita de deploy.
 
 ## Testes
 
@@ -367,27 +376,18 @@ cd cashya-api
 pytest -q
 ```
 
-Os testes cobrem autenticação, despesas, transações, endpoints de IA e módulos de análise. Para executar grupos específicos:
-
-```powershell
-pytest tests/test_expenses_api.py -q
-pytest tests/test_ai_modules.py -q
-```
+Os testes cobrem autenticação e perfil, cartões e carteira, despesas (filtros, calendário, soft delete, idempotência), sincronização (batch, LWW, backup) e grupos.
 
 ## Segurança e produção
 
-- Senhas nunca são armazenadas em texto puro.
-- JWT possui expiração, emissor e audiência validados.
-- Consultas protegidas filtram recursos pelo usuário autenticado.
-- Login e cadastro possuem rate limit em memória.
-- Requisições de escrita possuem limite de tamanho.
-- Respostas incluem cabeçalhos contra MIME sniffing, framing e uso indevido de recursos do navegador.
-- Use `SECRET_KEY` longa e aleatória, diferente entre ambientes.
-- Em produção, use HTTPS, banco gerenciado, secrets do provedor e rate limit compartilhado entre réplicas.
+- Senhas com Argon2; política mínima de 8 caracteres com letras e números.
+- `accessToken` curto com `iss`/`aud`/`typ` validados; `refreshToken` opaco armazenado apenas como hash SHA-256, com rotação e detecção de reuso.
+- Troca de senha revoga todas as sessões; troca de e-mail exige senha atual.
+- Toda consulta filtra pelo usuário autenticado (ou pelos grupos dos quais ele participa).
+- Rate limit em login/cadastro/refresh, limite de corpo de requisição e cabeçalhos contra MIME sniffing e framing.
+- Em produção: HTTPS, PostgreSQL, secrets do provedor e rate limit compartilhado entre réplicas (ex.: Redis).
 
 ## Aplicativo mobile
-
-Para instalar e executar o cliente Expo a partir da raiz:
 
 ```powershell
 npm install
