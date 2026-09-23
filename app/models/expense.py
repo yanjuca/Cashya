@@ -7,19 +7,25 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+EXPENSE_SOURCES = ("manual", "notification", "import")
 
-class Transaction(Base):
+
+class Expense(Base):
     __tablename__ = "expenses"
     __table_args__ = (
         Index("idx_expenses_user_date", "user_id", "date"),
         Index("idx_expenses_user_person", "user_id", "person"),
         Index("idx_expenses_user_paid", "user_id", "paid"),
         Index("idx_expenses_user_deleted", "user_id", "deleted_at"),
+        Index("idx_expenses_user_updated", "user_id", "updated_at"),
+        Index("idx_expenses_group_date", "group_id", "date"),
+        Index("idx_expenses_card", "card_id"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    category_id: Mapped[str | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    group_id: Mapped[str | None] = mapped_column(ForeignKey("groups.id", ondelete="SET NULL"), nullable=True)
+    card_id: Mapped[str | None] = mapped_column(ForeignKey("cards.id", ondelete="SET NULL"), nullable=True)
     description: Mapped[str] = mapped_column(String(255))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2, asdecimal=True))
     person: Mapped[str] = mapped_column(String(120))
@@ -31,5 +37,6 @@ class Transaction(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    user = relationship("User", back_populates="transactions")
-    category = relationship("Category", back_populates="transactions")
+    user = relationship("User", back_populates="expenses")
+    card = relationship("Card", back_populates="expenses")
+    group = relationship("Group", back_populates="expenses")

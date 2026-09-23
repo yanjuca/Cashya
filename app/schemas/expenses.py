@@ -1,49 +1,79 @@
-from datetime import datetime, timezone
+from datetime import date as DateType
+from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import Field, field_validator
+
+from app.schemas.common import CamelModel, Pagination, parse_iso_datetime
+
+ExpenseSource = Literal["manual", "notification", "import"]
+ExpenseStatus = Literal["all", "pending", "paid"]
+
+TAG_MAX_LENGTH = 40
+MAX_TAGS = 30
 
 
-def parse_expense_datetime(value: object) -> datetime:
-    if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    if isinstance(value, str) and len(value) == 10:
-        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
-    raise ValueError("date must be an ISO 8601 datetime")
+def normalize_tags(value: object) -> object:
+    if not isinstance(value, list):
+        return value
+    seen: set[str] = set()
+    tags: list[str] = []
+    for tag in value:
+        if not isinstance(tag, str):
+            raise ValueError("tags must be strings")
+        cleaned = tag.strip()
+        if not cleaned or len(cleaned) > TAG_MAX_LENGTH:
+            raise ValueError(f"each tag must have between 1 and {TAG_MAX_LENGTH} characters")
+        if cleaned.lower() not in seen:
+            seen.add(cleaned.lower())
+            tags.append(cleaned)
+    return tags
 
 
-class ExpenseCreate(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str | None = None
+class ExpenseBase(CamelModel):
     description: str = Field(min_length=1, max_length=255)
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     person: str = Field(min_length=1, max_length=120)
     date: datetime
-    tags: list[str] = Field(default_factory=list, max_length=30)
+    tags: list[str] = Field(default_factory=list, max_length=MAX_TAGS)
     paid: bool = False
-    source: str = Field(default="manual", pattern="^(manual|notification|import)$")
+    source: ExpenseSource = "manual"
+    card_id: str | None = Field(default=None, max_length=36)
+    group_id: str | None = Field(default=None, max_length=36)
 
-    _normalize_date = field_validator("date", mode="before")(parse_expense_datetime)
-
-
-class ExpenseUpdate(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    description: str = Field(min_length=1, max_length=255)
-    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
-    person: str = Field(min_length=1, max_length=120)
-    date: datetime
-    tags: list[str] = Field(default_factory=list, max_length=30)
-    paid: bool = False
-
-    _normalize_date = field_validator("date", mode="before")(parse_expense_datetime)
+    _date = field_validator("date", mode="before")(parse_iso_datetime)
+    _tags = field_validator("tags", mode="before")(normalize_tags)
 
 
-class ExpenseRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+class ExpenseCreate(ExpenseBase):
+    id: str | None = Field(default=None, min_length=1, max_length=36, description="Client generated UUID (offline first)")
 
+
+class ExpenseUpdate(ExpenseBase):
+    """PUT: full replacement of the mutable fields."""
+
+
+class ExpensePatch(CamelModel):
+    """PATCH: partial update, only the provided fields change."""
+
+    description: str | None = Field(default=None, min_length=1, max_length=255)
+    amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
+    person: str | None = Field(default=None, min_length=1, max_length=120)
+    date: datetime | None = None
+    tags: list[str] | None = Field(default=None, max_length=MAX_TAGS)
+    paid: bool | None = None
+    source: ExpenseSource | None = None
+    card_id: str | None = Field(default=None, max_length=36)
+    group_id: str | None = Field(default=None, max_length=36)
+
+    _date = field_validator("date", mode="before")(parse_iso_datetime)
+    _tags = field_validator("tags", mode="before")(normalize_tags)
+
+
+class ExpenseRead(CamelModel):
     id: str
+    user_id: str
     description: str
     amount: Decimal
     person: str
@@ -51,5 +81,37 @@ class ExpenseRead(BaseModel):
     tags: list[str]
     paid: bool
     source: str
-    created_at: datetime = Field(validation_alias=AliasChoices("created_at", "createdAt"), serialization_alias="createdAt")
-    updated_at: datetime = Field(validation_alias=AliasChoices("updated_at", "updatedAt"), serialization_alias="updatedAt")
+    card_id: str | None = None
+    group_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None = None
+
+
+class ExpenseListData(CamelModel):
+    items: list[ExpenseRead]
+    pagination: Pagination
+
+
+class ExpenseSummary(CamelModel):
+    total: Decimal
+    paid: Decimal
+    pending: Decimal
+    count: int
+    average: Decimal
+
+
+class CalendarDay(CamelModel):
+    """Aggregated totals for a single day, used by the calendar screen."""
+
+    date: DateType
+    total: Decimal
+    pending: Decimal
+    paid: Decimal
+    count: int
+
+
+class TogglePaidData(CamelModel):
+    id: str
+    paid: bool
+    updated_at: datetime

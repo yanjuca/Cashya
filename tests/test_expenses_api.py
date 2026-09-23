@@ -1,61 +1,113 @@
+from tests.conftest import API
+
+EXPENSE = {
+    "id": "e4a2c5b0-1234-4567-89ab-cdef01234567",
+    "description": "Supermercado",
+    "amount": 250.75,
+    "person": "Yan",
+    "date": "2026-09-09",
+    "tags": ["Alimentacao", "Mercado"],
+    "paid": False,
+    "source": "manual",
+}
+
+
 def test_expenses_contract_filters_reports_and_soft_delete(client, auth_headers):
-    payload = {
-        "id": "e4a2c5b0-1234-4567-89ab-cdef01234567",
-        "description": "Supermercado",
-        "amount": 250.75,
-        "person": "Yan",
-        "date": "2026-09-09",
-        "tags": ["Alimentacao", "Mercado"],
-        "paid": False,
-        "source": "manual",
-    }
-    created = client.post("/expenses", json=payload, headers=auth_headers)
-    assert created.status_code == 201
-    assert created.json()["success"] is True
-    assert created.json()["data"]["id"] == payload["id"]
-    assert created.json()["data"]["amount"] == 250.75
-    assert created.json()["data"]["createdAt"].endswith("+00:00") or created.json()["data"]["createdAt"].endswith("Z")
+    created = client.post(f"{API}/expenses", json=EXPENSE, headers=auth_headers)
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["success"] is True
+    assert body["data"]["id"] == EXPENSE["id"]
+    assert body["data"]["amount"] == 250.75
+    assert body["data"]["cardId"] is None
+    assert body["data"]["groupId"] is None
+    assert body["data"]["createdAt"].endswith("Z")
+    assert body["data"]["date"] == "2026-09-09T00:00:00.000Z"
 
-    listed = client.get("/expenses?month=9&year=2026&tag=Mercado", headers=auth_headers)
+    other = client.post(f"{API}/expenses", json={"description": "Jantar Outback", "amount": 185.5, "person": "Carlos", "date": "2026-09-21T20:30:00Z", "tags": ["Alimentação", "Lazer"], "paid": True}, headers=auth_headers)
+    assert other.status_code == 201
+
+    listed = client.get(f"{API}/expenses?month=9&year=2026&tag=Mercado", headers=auth_headers)
     assert listed.status_code == 200
-    assert listed.json()["data"]["pagination"]["total"] == 1
+    assert listed.json()["data"]["pagination"] == {"page": 1, "limit": 50, "total": 1, "totalPages": 1, "hasNext": False}
 
-    summary = client.get("/expenses/summary?month=9&year=2026", headers=auth_headers)
+    assert client.get(f"{API}/expenses?searchText=outback", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+    assert client.get(f"{API}/expenses?person=carlos", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+    assert client.get(f"{API}/expenses?status=pending", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+    assert client.get(f"{API}/expenses?status=paid", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+    assert client.get(f"{API}/expenses?startDate=2026-09-10T00:00:00Z&endDate=2026-09-30T00:00:00Z", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+    assert client.get(f"{API}/expenses?date=2026-09-09", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+    assert client.get(f"{API}/expenses?limit=1&page=2", headers=auth_headers).json()["data"]["pagination"]["hasNext"] is False
+
+    summary = client.get(f"{API}/expenses/summary?month=9&year=2026", headers=auth_headers)
     assert summary.json()["data"]["pending"] == 250.75
+    assert summary.json()["data"]["paid"] == 185.5
+    assert summary.json()["data"]["count"] == 2
 
-    toggled = client.patch(f"/expenses/{payload['id']}/toggle-paid", headers=auth_headers)
+    calendar = client.get(f"{API}/expenses/calendar?month=9&year=2026", headers=auth_headers)
+    assert calendar.status_code == 200
+    days = calendar.json()["data"]["days"]
+    assert [day["date"] for day in days] == ["2026-09-09", "2026-09-21"]
+    assert days[0]["pending"] == 250.75
+    assert days[1]["paid"] == 185.5
+
+    by_person = client.get(f"{API}/expenses/by-person?month=9&year=2026", headers=auth_headers).json()["data"]
+    assert by_person[0]["name"] == "Yan"
+    assert client.get(f"{API}/expenses/by-tag?month=9&year=2026", headers=auth_headers).status_code == 200
+    assert client.get(f"{API}/expenses/monthly-trend?months=3", headers=auth_headers).status_code == 200
+
+    toggled = client.patch(f"{API}/expenses/{EXPENSE['id']}/toggle-paid", headers=auth_headers)
     assert toggled.json()["data"]["paid"] is True
 
-    deleted = client.delete(f"/expenses/{payload['id']}", headers=auth_headers)
+    patched = client.patch(f"{API}/expenses/{EXPENSE['id']}", json={"amount": 300, "tags": ["Mercado", " mercado ", "Casa"]}, headers=auth_headers)
+    assert patched.status_code == 200
+    assert patched.json()["data"]["amount"] == 300.0
+    assert patched.json()["data"]["tags"] == ["Mercado", "Casa"]
+    assert patched.json()["data"]["description"] == "Supermercado"
+
+    replaced = client.put(f"{API}/expenses/{EXPENSE['id']}", json={**EXPENSE, "description": "Mercado do mês"}, headers=auth_headers)
+    assert replaced.status_code == 200
+    assert replaced.json()["data"]["description"] == "Mercado do mês"
+    assert replaced.json()["data"]["paid"] is False
+
+    deleted = client.delete(f"{API}/expenses/{EXPENSE['id']}", headers=auth_headers)
     assert deleted.status_code == 200
-    assert client.get(f"/expenses/{payload['id']}", headers=auth_headers).status_code == 404
+    assert deleted.json()["data"]["deletedAt"]
+    assert client.get(f"{API}/expenses/{EXPENSE['id']}", headers=auth_headers).status_code == 404
+
+    # Delta sync: `since` also returns soft-deleted rows so other devices can drop them.
+    delta = client.get(f"{API}/expenses?since=2026-01-01T00:00:00Z", headers=auth_headers).json()["data"]["items"]
+    deleted_item = next(item for item in delta if item["id"] == EXPENSE["id"])
+    assert deleted_item["deletedAt"] is not None
 
 
-def test_expenses_sync_and_inbox(client, auth_headers):
-    inbox = client.get("/inbox", headers=auth_headers)
-    assert inbox.status_code == 200
-    assert inbox.json()["data"] == []
+def test_amount_must_be_positive(client, auth_headers):
+    response = client.post(f"{API}/expenses", json={**EXPENSE, "id": None, "amount": 0}, headers=auth_headers)
+    assert response.status_code == 422
+    assert response.json()["error"]["details"][0]["field"] == "amount"
 
-    synced = client.post(
-        "/sync",
-        json={
-            "lastSyncedAt": "2026-09-01T00:00:00Z",
-            "created": [
-                {
-                    "id": "d1c2b3a4-5678-90ab-cdef-1234567890ab",
-                    "description": "Cafe",
-                    "amount": 25.50,
-                    "person": "Yan",
-                    "date": "2026-09-09",
-                    "tags": ["Alimentacao"],
-                    "paid": True,
-                    "source": "manual",
-                }
-            ],
-            "updated": [],
-            "deletedIds": [],
-        },
-        headers=auth_headers,
-    )
-    assert synced.status_code == 200
-    assert synced.json()["data"]["pulled"]["createdOrUpdated"]
+
+def test_create_with_same_client_id_is_idempotent(client, auth_headers):
+    payload = {**EXPENSE, "id": "e4a2c5b0-1234-4567-89ab-cdef0123ffff"}
+    assert client.post(f"{API}/expenses", json=payload, headers=auth_headers).status_code == 201
+    again = client.post(f"{API}/expenses", json={**payload, "description": "Retry"}, headers=auth_headers)
+    assert again.status_code == 201
+    assert again.json()["data"]["description"] == "Retry"
+    assert client.get(f"{API}/expenses", headers=auth_headers).json()["data"]["pagination"]["total"] == 1
+
+
+def test_inbox_confirm_creates_notification_expense(client, auth_headers):
+    assert client.get(f"{API}/inbox", headers=auth_headers).json()["data"] == []
+    queued = client.post(f"{API}/inbox", json={"description": "Compra aprovada", "amount": 42.9, "date": "2026-09-15T10:00:00Z", "institution": "Nubank", "rawText": "Compra aprovada R$ 42,90"}, headers=auth_headers)
+    assert queued.status_code == 201
+    pending_id = queued.json()["data"]["id"]
+    assert queued.json()["data"]["rawText"].startswith("Compra")
+
+    confirmed = client.post(f"{API}/inbox/{pending_id}/confirm", json={"description": "Padaria", "person": "Yan", "tags": ["Alimentacao"]}, headers=auth_headers)
+    assert confirmed.status_code == 200
+    assert confirmed.json()["data"]["source"] == "notification"
+    assert confirmed.json()["data"]["amount"] == 42.9
+    assert client.get(f"{API}/inbox", headers=auth_headers).json()["data"] == []
+
+    queued_again = client.post(f"{API}/inbox", json={"description": "x", "amount": 1, "date": "2026-09-15"}, headers=auth_headers).json()["data"]["id"]
+    assert client.delete(f"{API}/inbox/{queued_again}", headers=auth_headers).status_code == 200

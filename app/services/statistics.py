@@ -1,10 +1,10 @@
 from collections import defaultdict
 
-from app.models.transaction import Transaction
+from app.models.expense import Expense
 from app.schemas.statistics import GroupTotal, MonthTotal, StatisticsRead, Summary
 
 
-def build_statistics(transactions: list[Transaction]) -> StatisticsRead:
+def build_statistics(transactions: list[Expense]) -> StatisticsRead:
     total = sum(item.amount for item in transactions)
     paid = sum(item.amount for item in transactions if item.paid)
     by_person: dict[str, dict[str, float | int]] = defaultdict(lambda: {"total": 0.0, "pending": 0.0, "count": 0})
