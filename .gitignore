@@ -2,9 +2,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.venv*/
 venv/
 .env
 cashya.db
 cashya.db-*
+tests/test_cashya.db
 .coverage
 htmlcov/
