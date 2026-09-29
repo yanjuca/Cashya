@@ -93,6 +93,7 @@ Cashya uses a **Pragmatic Feature-Based Modular Architecture**, combining clear 
 
 > 📖 **Check out the technical documentation**:  
 > 👉 [**Frontend Architecture Guide**](docs/ARCHITECTURE.md)  
+> 👉 [**Design System & UI Tokens Guide**](docs/DESIGN_SYSTEM.md)  
 > 👉 [**Backend & API Specification Guide**](docs/BACKEND_SPEC.md)
 
 ---

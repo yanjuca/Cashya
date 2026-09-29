@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
 import { ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AlertProvider } from '../contexts/AlertContext';
 import { CardsProvider } from '../contexts/CardsContext';
 import { ExpensesProvider } from '../contexts/ExpensesContext';
@@ -22,18 +23,20 @@ export default function RootLayout() {
   }
 
   return (
-    <AlertProvider>
-      <ExpensesProvider>
-        <CardsProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-        </CardsProvider>
-      </ExpensesProvider>
-    </AlertProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AlertProvider>
+        <ExpensesProvider>
+          <CardsProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+          </CardsProvider>
+        </ExpensesProvider>
+      </AlertProvider>
+    </GestureHandlerRootView>
   );
 }

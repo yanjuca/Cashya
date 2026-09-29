@@ -88,11 +88,11 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
         source: 'manual',
       });
 
+      onClose();
       showAlert({
         title: 'Success',
         message: 'Expense recorded successfully!',
         type: 'success',
-        buttons: [{ text: 'OK', onPress: onClose }],
       });
     } catch {
       showAlert({
@@ -238,7 +238,7 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
           <Text style={styles.label}>Date</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
+            onPress={() => setShowDatePicker((prev) => !prev)}
           >
             <MaterialIcons name="calendar-today" size={20} color={COLORS.textSecondary} />
             <Text style={styles.dateText}>

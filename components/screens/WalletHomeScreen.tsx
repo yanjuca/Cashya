@@ -1,8 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  BackHandler,
   Modal,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,20 +18,54 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardsCarousel from '../cards/CardsCarousel';
 import MetricCard from '../dashboard/MetricCard';
 import EditExpenseScreen from './EditExpenseScreen';
+import TransactionDetailsModal from './TransactionDetailsModal';
+import { useAlert } from '../../contexts/AlertContext';
 import { useCards } from '../../contexts/CardsContext';
 import { Expense, useExpenses } from '../../contexts/ExpensesContext';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
 
-import AddCardModal from '../cards/AddCardModal';
+export interface WalletHomeScreenProps {
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
+  onEditModeChange?: (isEditMode: boolean) => void;
+}
 
-export default function WalletHomeScreen() {
+export default function WalletHomeScreen({ onScroll, onEditModeChange }: WalletHomeScreenProps = {}) {
   const insets = useSafeAreaInsets();
   const { cards, activeCardIndex, setActiveCardIndex, activeCard } = useCards();
-  const { expenses, togglePaid } = useExpenses();
+  const { expenses, removeExpenses } = useExpenses();
+  const { showAlert } = useAlert();
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
   const [showEditExpense, setShowEditExpense] = useState(false);
-  const [showAddCard, setShowAddCard] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  const editBarAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(editBarAnim, {
+      toValue: isEditMode ? 1 : 0,
+      tension: 65,
+      friction: 10,
+      useNativeDriver: false,
+    }).start();
+  }, [isEditMode, editBarAnim]);
+
+  useEffect(() => {
+    onEditModeChange?.(isEditMode);
+  }, [isEditMode, onEditModeChange]);
+
+  useEffect(() => {
+    if (!isEditMode) return;
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      setIsEditMode(false);
+      setSelectedExpenseIds(new Set());
+      return true;
+    });
+    return () => backHandler.remove();
+  }, [isEditMode]);
 
   // Month expenses
   const currentMonthExpenses = useMemo(() => {
@@ -60,13 +98,173 @@ export default function WalletHomeScreen() {
   const percentage = hasCard && cardLimit > 0 ? Math.min(100, Math.round((totalGasto / cardLimit) * 100)) : 0;
 
   const handleExpensePress = (item: Expense) => {
-    setSelectedExpense(item);
+    if (isEditMode) {
+      toggleExpenseSelection(item.id);
+    } else {
+      setSelectedExpense(item);
+      setShowDetailsModal(true);
+    }
+  };
+
+  const handleExpenseLongPress = (item: Expense) => {
+    if (!isEditMode) {
+      if (Platform.OS !== 'web') {
+        try {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } catch {}
+      }
+      setIsEditMode(true);
+      setSelectedExpenseIds(new Set([item.id]));
+    } else {
+      toggleExpenseSelection(item.id);
+    }
+  };
+
+  const toggleExpenseSelection = (id: string) => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {}
+    }
+    setSelectedExpenseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      if (next.size === 0) {
+        setIsEditMode(false);
+      }
+      return next;
+    });
+  };
+
+  const handleEditButtonPress = (item: Expense) => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {}
+    }
+    setEditingExpense(item);
     setShowEditExpense(true);
+  };
+
+  const handleDeleteSelected = () => {
+    const count = selectedExpenseIds.size;
+    if (count === 0) return;
+
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {}
+    }
+
+    showAlert({
+      title: 'Delete Transactions',
+      message: `Are you sure you want to delete ${count} ${
+        count === 1 ? 'transaction' : 'transactions'
+      }? This action cannot be undone.`,
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const idsToDelete = Array.from(selectedExpenseIds);
+            await removeExpenses(idsToDelete);
+            setIsEditMode(false);
+            setSelectedExpenseIds(new Set());
+            showAlert({
+              title: 'Deleted',
+              message: `${count} ${
+                count === 1 ? 'transaction' : 'transactions'
+              } deleted successfully.`,
+              type: 'success',
+            });
+          },
+        },
+      ],
+    });
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
+
+      {/* Top Batch Selection & Action Bar (slides in during Edit Mode, pushing content down) */}
+      <Animated.View
+        style={[
+          styles.editModeBarWrapper,
+          {
+            maxHeight: editBarAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 68],
+            }),
+            opacity: editBarAnim,
+            transform: [
+              {
+                translateY: editBarAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+        pointerEvents={isEditMode ? 'auto' : 'none'}
+      >
+        <View style={styles.editModeBar}>
+          <View style={styles.editModeLeft}>
+            <TouchableOpacity
+              style={styles.editModeCloseBtn}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  try {
+                    Haptics.selectionAsync();
+                  } catch {}
+                }
+                setIsEditMode(false);
+                setSelectedExpenseIds(new Set());
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={16} color="#ffffff" />
+            </TouchableOpacity>
+            <Text style={styles.editModeCountText}>
+              {selectedExpenseIds.size} SELECTED
+            </Text>
+          </View>
+
+          <View style={styles.editModeRight}>
+            <TouchableOpacity
+              style={[
+                styles.editModeDeleteBtn,
+                selectedExpenseIds.size === 0 && styles.editModeDeleteBtnDisabled,
+              ]}
+              onPress={handleDeleteSelected}
+              disabled={selectedExpenseIds.size === 0}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={14}
+                color={selectedExpenseIds.size > 0 ? '#ffffff' : '#665555'}
+              />
+              <Text
+                style={[
+                  styles.editModeDeleteText,
+                  selectedExpenseIds.size === 0 && styles.editModeDeleteTextDisabled,
+                ]}
+              >
+                DELETE
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
 
       {/* Ambient background glow */}
       <LinearGradient
@@ -76,34 +274,41 @@ export default function WalletHomeScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View
-        style={[
-          styles.mainContent,
+      <ScrollView
+        style={styles.mainScroll}
+        contentContainerStyle={[
+          styles.mainScrollContent,
           {
             paddingTop: 4,
-            paddingBottom: Math.max(insets.bottom, 10),
+            paddingBottom: Math.max(insets.bottom, 10) + 100,
           },
         ]}
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
         {/* Cards Carousel */}
-        <View style={styles.carouselWrapper}>
-          <CardsCarousel
-            cards={cards}
-            activeIndex={activeCardIndex}
-            onIndexChange={setActiveCardIndex}
-            onAddCard={() => setShowAddCard(true)}
-          />
-        </View>
+        {cards && cards.length > 0 && (
+          <View style={styles.carouselWrapper}>
+            <CardsCarousel
+              cards={cards}
+              activeIndex={activeCardIndex}
+              onIndexChange={setActiveCardIndex}
+            />
+          </View>
+        )}
 
         {/* Metrics Section */}
         <View style={styles.metricsContainer}>
           {/* Available limit */}
-          <MetricCard
-            label="Available limit"
-            value={hasCard ? formatCurrency(limiteDisponivel) : '—'}
-            subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'No card selected'}
-            badge={hasCard ? `${percentage}%` : undefined}
-          />
+          {hasCard && (
+            <MetricCard
+              label="Available limit"
+              value={formatCurrency(limiteDisponivel)}
+              subtitle={`of ${formatCurrency(cardLimit)}`}
+              badge={`${percentage}%`}
+            />
+          )}
 
           {/* Total spent */}
           <MetricCard
@@ -138,95 +343,121 @@ export default function WalletHomeScreen() {
             </Text>
           </View>
 
-          <View style={styles.transactionsListContainer}>
-            <ScrollView
-              style={styles.transactionsScrollView}
-              contentContainerStyle={styles.transactionsScrollContent}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-            >
-              {sortedExpenses.length === 0 ? null : (
-                sortedExpenses.map((item) => (
+          <View style={styles.transactionsList}>
+            {sortedExpenses.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="receipt-outline" size={36} color="#262630" />
+                <Text style={styles.emptyText}>No transactions this month</Text>
+              </View>
+            ) : (
+              sortedExpenses.map((item) => {
+                const isSelected = selectedExpenseIds.has(item.id);
+
+                return (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.expenseItem}
+                    style={[
+                      styles.expenseItem,
+                      isEditMode && styles.cardEditMode,
+                      isSelected && styles.cardSelected,
+                    ]}
                     activeOpacity={0.7}
                     onPress={() => handleExpensePress(item)}
-                    onLongPress={() => togglePaid(item.id)}
+                    onLongPress={() => handleExpenseLongPress(item)}
+                    delayLongPress={300}
                   >
-                    <View style={styles.expenseHeaderRow}>
-                      <Text style={styles.expenseDescription} numberOfLines={1}>
-                        {item.description}
-                      </Text>
-                      <View
-                        style={[
-                          styles.statusDot,
-                          item.paid ? styles.statusDotPaid : styles.statusDotPending,
-                        ]}
-                      />
-                    </View>
+                    <View style={styles.cardMainRow}>
+                      {/* Checkbox (visible in edit mode) */}
+                      {isEditMode && (
+                        <TouchableOpacity
+                          style={[styles.checkbox, isSelected && styles.checkboxActive]}
+                          onPress={() => toggleExpenseSelection(item.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.8}
+                        >
+                          {isSelected && <Ionicons name="checkmark" size={13} color="#ffffff" />}
+                        </TouchableOpacity>
+                      )}
 
-                    <View style={styles.expenseDetailsRow}>
-                      <View style={styles.expenseSubDetails}>
-                        <Text style={styles.expensePerson}>{item.person}</Text>
-                        <Text style={styles.expenseDate}>
-                          {item.date.toLocaleDateString('en-US', {
-                            day: '2-digit',
-                            month: 'short',
-                          })}
-                        </Text>
-                      </View>
-                      <Text style={styles.expenseAmount}>
-                        {formatCurrency(item.amount)}
-                      </Text>
-                    </View>
+                      <View style={styles.cardContent}>
+                        <View style={styles.expenseHeaderRow}>
+                          <Text style={styles.expenseDescription} numberOfLines={1}>
+                            {item.description}
+                          </Text>
+                          {!isEditMode && (
+                            <View
+                              style={[
+                                styles.statusDot,
+                                item.paid ? styles.statusDotPaid : styles.statusDotPending,
+                              ]}
+                            />
+                          )}
+                        </View>
 
-                    {item.tags && item.tags.length > 0 && (
-                      <View style={styles.tagsRow}>
-                        {item.tags.map((tag, idx) => (
-                          <View key={idx} style={styles.tagBadge}>
-                            <Text style={styles.tagText}>#{tag}</Text>
+                        <View style={styles.expenseDetailsRow}>
+                          <View style={styles.expenseSubDetails}>
+                            <Text style={styles.expensePerson}>{item.person}</Text>
+                            <Text style={styles.expenseDate}>
+                              {item.date.toLocaleDateString('en-US', {
+                                day: '2-digit',
+                                month: 'short',
+                              })}
+                            </Text>
                           </View>
-                        ))}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
+                          <Text style={styles.expenseAmount}>
+                            {formatCurrency(item.amount)}
+                          </Text>
+                        </View>
 
-            {/* Gradient Overlay Fade out on bottom */}
-            {sortedExpenses.length > 1 && (
-              <LinearGradient
-                colors={[
-                  'transparent',
-                  'rgba(0, 0, 0, 0.4)',
-                  'rgba(0, 0, 0, 0.85)',
-                  '#000000',
-                ]}
-                locations={[0, 0.35, 0.7, 1]}
-                pointerEvents="none"
-                style={styles.gradientOverlay}
-              />
+                        {item.tags && item.tags.length > 0 && (
+                          <View style={styles.tagsRow}>
+                            {item.tags.map((tag, idx) => (
+                              <View key={idx} style={styles.tagBadge}>
+                                <Text style={styles.tagText}>#{tag}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Edit Pencil Button (visible in edit mode) */}
+                      {isEditMode && (
+                        <TouchableOpacity
+                          style={styles.cardEditPencilBtn}
+                          onPress={() => handleEditButtonPress(item)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="pencil-sharp" size={15} color="#ffffff" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Add Card Modal */}
-      <AddCardModal
-        visible={showAddCard}
-        onClose={() => setShowAddCard(false)}
+      {/* Transaction Details Modal */}
+      <TransactionDetailsModal
+        visible={showDetailsModal}
+        expense={selectedExpense}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedExpense(null);
+        }}
       />
 
-      {/* Edit / Details Modal */}
+      {/* Edit Expense Modal */}
       <Modal visible={showEditExpense} animationType="slide" presentationStyle="fullScreen">
-        {selectedExpense && (
+        {editingExpense && (
           <EditExpenseScreen
-            expense={selectedExpense}
+            expense={editingExpense}
             onClose={() => {
               setShowEditExpense(false);
-              setSelectedExpense(null);
+              setEditingExpense(null);
             }}
           />
         )}
@@ -240,9 +471,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
-  mainContent: {
+  mainScroll: {
     flex: 1,
-    justifyContent: 'flex-start',
+  },
+  mainScrollContent: {
+    paddingTop: 4,
   },
   titleSection: {
     paddingHorizontal: 22,
@@ -259,13 +492,13 @@ const styles = StyleSheet.create({
   },
   metricsContainer: {
     paddingHorizontal: 22,
+    paddingTop: 22,
   },
   splitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   transactionsSection: {
-    flex: 1,
     marginTop: 18,
     paddingHorizontal: 22,
   },
@@ -286,24 +519,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#666672',
   },
-  transactionsListContainer: {
-    flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  transactionsScrollView: {
-    flex: 1,
-  },
-  transactionsScrollContent: {
-    paddingBottom: 110,
+  transactionsList: {
     gap: 8,
-  },
-  gradientOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 300,
   },
   expenseItem: {
     backgroundColor: '#16161a',
@@ -388,5 +605,108 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#666672',
     fontSize: 12,
+  },
+  editModeBarWrapper: {
+    zIndex: 20,
+    elevation: 20,
+    overflow: 'hidden',
+  },
+  editModeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#16161c',
+    marginHorizontal: 22,
+    marginTop: 6,
+    marginBottom: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: '#262630',
+  },
+  editModeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  editModeCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: '#22222a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editModeCountText: {
+    fontFamily: FONTS.ndotCaps || FONTS.system,
+    fontSize: 12,
+    color: '#ffffff',
+    letterSpacing: 1,
+  },
+  editModeRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editModeDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.primary,
+  },
+  editModeDeleteBtnDisabled: {
+    backgroundColor: '#26181a',
+  },
+  editModeDeleteText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  editModeDeleteTextDisabled: {
+    color: '#664448',
+  },
+  cardMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardEditMode: {
+    borderColor: '#2e2e38',
+  },
+  cardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#1c1214',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: '#444452',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkboxActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  cardEditPencilBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#202028',
+    borderWidth: 1,
+    borderColor: '#30303c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
   },
 });

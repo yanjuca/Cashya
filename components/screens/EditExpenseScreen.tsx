@@ -88,11 +88,11 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
         cardId: selectedCardId,
       });
 
+      onClose();
       showAlert({
         title: 'Success',
         message: 'Expense updated successfully!',
         type: 'success',
-        buttons: [{ text: 'OK', onPress: onClose }],
       });
     } catch {
       showAlert({
@@ -116,11 +116,11 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
           style: 'destructive',
           onPress: async () => {
             await removeExpense(expense.id);
+            onClose();
             showAlert({
               title: 'Deleted',
               message: 'Expense removed successfully.',
               type: 'success',
-              buttons: [{ text: 'OK', onPress: onClose }],
             });
           },
         },
@@ -265,7 +265,7 @@ export default function EditExpenseScreen({ expense, onClose }: EditExpenseScree
           <Text style={styles.label}>Date</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
+            onPress={() => setShowDatePicker((prev) => !prev)}
           >
             <MaterialIcons name="calendar-today" size={20} color={COLORS.textSecondary} />
             <Text style={styles.dateText}>
