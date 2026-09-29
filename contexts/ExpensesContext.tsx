@@ -1,4 +1,5 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { LayoutAnimation, Platform } from 'react-native';
 import { StorageService } from '../services/storage';
 import { Expense } from '../types';
 
@@ -43,6 +44,23 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
 
   const saveAndSetExpenses = async (newExpenses: Expense[]) => {
     try {
+      if (Platform.OS !== 'web') {
+        LayoutAnimation.configureNext({
+          duration: 320,
+          create: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+          update: {
+            type: LayoutAnimation.Types.spring,
+            springDamping: 0.75,
+          },
+          delete: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+        });
+      }
       await StorageService.saveExpenses(newExpenses);
       setExpenses(newExpenses);
     } catch (error) {

@@ -55,9 +55,26 @@ Cashya uses two distinct font families:
    - `FONTS.medium` (`'DMSans_500Medium'`): Subtitles, labels, participant names, tab bar labels.
    - `FONTS.bold` (`'DMSans_700Bold'`): Buttons, badge text, emphasized highlights.
 
+## 4. Language & Copy Standards (Strict English UI)
+
+All user-facing copy in Cashya must be strictly in **English**:
+- **UI Labels & Section Headers**:
+  - Dot-matrix uppercase titles: `TRANSACTIONS`, `FURTHER INSIGHTS`, `MY CARDS`, `BACKUP & RESTORE (OFFLINE-FIRST)`.
+  - Spec sheet labels: `RESPONSIBLE`, `FULL DATE`, `METHOD / CARD`, `RECORD SOURCE`, `ATTACHED TAGS`.
+- **Status Badges & Actions**:
+  - Status indicators: `PAID` (green `#30d158`), `PENDING` / `UNPAID` (red `#ff453a`).
+  - Toggle buttons: `MARK AS PAID`, `MARK AS UNPAID`.
+- **Metrics & Insight Labels**:
+  - `MONTH SHARE`, `LIMIT USAGE`, `HISTORY`, `First time`, `Records`, `Available limit`, `Total spent`.
+- **Dates & Locales**:
+  - ALWAYS use `'en-US'` for date and number formatting (e.g. `toLocaleDateString('en-US', ...)`).
+  - NEVER format dates with `'pt-BR'`.
+- **Modals, Forms & Alerts**:
+  - Form placeholders, input labels (`Cardholder Name`, `Who should pay / Responsible`), modal headers, and custom alerts (`useAlert()`) must always be written in English.
+
 ---
 
-## 4. UI Recipes & Code Patterns
+## 5. UI Recipes & Code Patterns
 
 ### Recipe A: Standard Elevated Card (`MetricCard` / `ExpenseItem` pattern)
 ```typescript
@@ -216,18 +233,161 @@ const styles = StyleSheet.create({
 });
 ```
 
+### Recipe E: Standard Bottom-Sheet Modal Pattern (`AddCardModal` / `AddExpenseScreen` pattern)
+All modals in Cashya follow the same bottom-sheet dialog archetype:
+```typescript
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { BORDER_RADIUS, COLORS, FONTS } from '@/theme';
+
+export function StandardModalSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalBackdrop}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.modalCard}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>MODAL TITLE</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Modal Body / Inputs */}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#16161a',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#24242a',
+    maxHeight: '88%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.ndot || FONTS.system,
+    color: '#ffffff',
+    letterSpacing: 1,
+  },
+  inputLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 8,
+    marginTop: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modalInput: {
+    fontFamily: FONTS.regular,
+    backgroundColor: '#0e0e12',
+    borderWidth: 1,
+    borderColor: '#2a2a32',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#ffffff',
+    fontSize: 15,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  pillOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#0e0e12',
+    borderWidth: 1,
+    borderColor: '#2a2a32',
+  },
+  pillOptionActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  modalSaveButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  modalSaveButtonText: {
+    fontFamily: FONTS.bold,
+    color: '#ffffff',
+    fontSize: 15,
+  },
+});
+```
+
+### Recipe F: Dock-Coupled Batch Edit Mode (Expanding Bottom Dock Pattern)
+Batch action bar is coupled directly to the bottom floating navigation dock (`app/(tabs)/_layout.tsx`):
+- When normal: Dock is `64px` height, housing 4 tabs (`Home`, `Transactions`, `Analytics`, `Settings`).
+- When in Edit Mode: Dock expands with spring physics (`tension: 65, friction: 11`) to `118px` height:
+  - **Upper Tier (`52px`)**:
+    - Left: Circular `✕` button (`#22222a`, `size: 28`) to exit edit mode + `${count} SELECTED` in `FONTS.ndotCaps` (`letterSpacing: 1`, `color: #ffffff`).
+    - Right: Destructive delete pill (`COLORS.primary`, `trash-outline` icon + `DELETE` label in `FONTS.bold`).
+  - **Divider**: Hairline `1px` (`#262630`) dividing the edit tier and the tabs.
+  - **Lower Tier (`64px`)**: Navigation tabs row.
+- In screens (`WalletHomeScreen`, `TransactionsScreen`): No top floating bars. ScrollViews use `paddingBottom: 140-150` so cards are never obscured.
+
 ---
 
-## 5. Anti-Hallucination Checklist
+## 6. Anti-Hallucination Checklist
 
 Before finalizing any UI implementation, verify:
+- [ ] Strictly English UI: all user-facing copy, headers, button labels, form placeholders, status pills (`PAID`/`PENDING`), dialog messages, and dates (`en-US`) are strictly in English (NO Portuguese strings).
 - [ ] No external UI kit imported (`NativeBase`, `Paper`, `Tamagui`, `NativeWind`).
 - [ ] All colors imported from `theme.ts` (`COLORS.*`), no random hex codes.
 - [ ] No light mode styles or white screen backgrounds.
 - [ ] Dot-matrix fonts (`Ndot57`) used strictly for numbers, amounts, dates, and titles.
 - [ ] Regular/Medium/Bold DM Sans used for body, labels, and forms.
 - [ ] Cards have `1px` border (`#24242a` or `COLORS.border`) and `BORDER_RADIUS.lg` (16).
+- [ ] Modals follow Recipe E (`StandardModalSheet` pattern: slide animation, #16161a, 24px top radius, #24242a border, close icon).
+- [ ] Empty states use minimal dotted glyphs (`reorder-two-outline` in `#22222a`) without cluttered body copy.
 - [ ] Alerts use `useAlert()` (`CustomAlertModal.tsx`), NEVER `Alert.alert(...)`.
+- [ ] Navigation controls & dropdowns prefer dot-matrix / typographic glyphs (`‹`, `›`, `▲`, `▼`).
 - [ ] Icons use `@expo/vector-icons` (`Ionicons`).
 - [ ] Haptic feedback properly guarded with `Platform.OS !== 'web'` and `try/catch`.
 - [ ] Type integrity validated with `npx tsc --noEmit`.

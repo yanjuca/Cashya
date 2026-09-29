@@ -1,10 +1,15 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
-import { ActivityIndicator } from 'react-native';
+import { ActivityIndicator, Platform, UIManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { AlertProvider } from '../contexts/AlertContext';
 import { CardsProvider } from '../contexts/CardsContext';
 import { ExpensesProvider } from '../contexts/ExpensesContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { useFonts } from '../hooks/useFonts';
 import { COLORS } from '../theme';
 
@@ -24,19 +29,21 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AlertProvider>
-        <ExpensesProvider>
-          <CardsProvider>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-              }}
-            >
-              <Stack.Screen name="(tabs)" />
-            </Stack>
-          </CardsProvider>
-        </ExpensesProvider>
-      </AlertProvider>
+      <ThemeProvider>
+        <AlertProvider>
+          <ExpensesProvider>
+            <CardsProvider>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                }}
+              >
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            </CardsProvider>
+          </ExpensesProvider>
+        </AlertProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

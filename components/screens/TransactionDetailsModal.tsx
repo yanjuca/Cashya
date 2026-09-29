@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
-  Modal,
+  Animated,
+  Easing,
   Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,14 +12,17 @@ import {
 } from 'react-native';
 import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { Expense } from '../../types';
 import { formatCurrency, formatMonthYear } from '../../utils/formatters';
+import BottomSheetModal from '../ui/BottomSheetModal';
 
 interface TransactionDetailsModalProps {
   visible: boolean;
   expense: Expense | null;
   onClose: () => void;
+  onEdit?: (expense: Expense) => void;
 }
 
 interface InferredInsight {
@@ -34,43 +36,43 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
 
   // Supermarket & Groceries
   if (
-    /mercado|supermercado|feir|hortifruti|a[çc]ougue|padaria|carrefour|p[ãa]o de a[çc][uú]car|extra|dia|assa[íi]|atacad|mercearia|grocery|market/.test(
+    /mercado|supermercado|feir|hortifruti|a[çc]ougue|padaria|carrefour|p[ãa]o de a[çc][uú]car|extra|dia|assa[íi]|atacad|mercearia|grocery|market|bakery|butcher/.test(
       text
     )
   ) {
     return {
-      category: 'Supermercado & Mantimentos',
+      category: 'Supermarket & Groceries',
       iconName: 'cart-outline',
       explanation:
-        'Movimentação comum de abastecimento doméstico ou compras em supermercados e feiras.',
+        'Regular household supplies or purchases at supermarkets and grocery stores.',
     };
   }
 
   // Dining & Delivery
   if (
-    /ifood|rappi|restaurante|lanche|burger|hamburg|pizza|caf[ée]|coffee|bar|delivery|almo[çc]o|jantar|mcdonald|bk|burger king|outback|starbucks|churrasc|sushi|comida/.test(
+    /ifood|rappi|restaurante|lanche|burger|hamburg|pizza|caf[ée]|coffee|bar|delivery|almo[çc]o|jantar|mcdonald|bk|burger king|outback|starbucks|churrasc|sushi|comida|food|dining/.test(
       text
     )
   ) {
     return {
-      category: 'Restaurante & Delivery',
+      category: 'Dining & Delivery',
       iconName: 'restaurant-outline',
       explanation:
-        'Despesa com alimentação fora de casa, refeições rápidas ou pedidos de delivery.',
+        'Dining out, quick meals, coffee, or food delivery orders.',
     };
   }
 
   // Transport & Mobility
   if (
-    /uber|99|t[áa]xi|taxi|posto|gasolina|combust[íi]vel|etanol|diesel|ped[áa]gio|estacionamento|sem parar|veloe|bilhete|metr[ôo]|onibus|[ôo]nibus|passagem|voo|a[ée]reo/.test(
+    /uber|99|t[áa]xi|taxi|posto|gasolina|combust[íi]vel|etanol|diesel|ped[áa]gio|estacionamento|sem parar|veloe|bilhete|metr[ôo]|onibus|[ôo]nibus|passagem|voo|a[ée]reo|fuel|gas|toll|transit|flight/.test(
       text
     )
   ) {
     return {
-      category: 'Transporte & Mobilidade',
+      category: 'Transport & Mobility',
       iconName: 'car-outline',
       explanation:
-        'Custo associado a mobilidade urbana, transporte por aplicativo, combustível ou pedágio.',
+        'Urban mobility costs, ride-sharing, fuel, tolls, or public transit.',
     };
   }
 
@@ -81,62 +83,62 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     )
   ) {
     return {
-      category: 'Streaming & Assinaturas',
+      category: 'Streaming & Subscriptions',
       iconName: 'play-circle-outline',
       explanation:
-        'Cobrança associada a serviços recorrentes de entretenimento, streaming ou jogos digitais.',
+        'Recurring charges for digital entertainment, streaming services, or gaming.',
     };
   }
 
   // Shopping & Retail
   if (
-    /amazon|mercado livre|shopee|aliexpress|shein|magalu|magazine|loja|shopping|roupa|vestu[áa]rio|zara|renner|riachuelo|c&a|compra/.test(
+    /amazon|mercado livre|shopee|aliexpress|shein|magalu|magazine|loja|shopping|roupa|vestu[áa]rio|zara|renner|riachuelo|c&a|compra|retail|clothes|store/.test(
       text
     )
   ) {
     return {
-      category: 'Compras & Vestuário',
+      category: 'Shopping & Retail',
       iconName: 'bag-handle-outline',
       explanation:
-        'Compra no comércio presencial ou e-commerce de produtos e itens pessoais.',
+        'In-store or online retail shopping for personal goods and clothing.',
     };
   }
 
   // Health & Wellbeing
   if (
-    /farm[áa]cia|drogaria|drogasil|raia|rem[ée]dio|medicamento|m[ée]dico|consulta|hospital|laborat[óo]rio|exame|sa[úu]de|dentista|odonto|academia|gym|smart fit/.test(
+    /farm[áa]cia|drogaria|drogasil|raia|rem[ée]dio|medicamento|m[ée]dico|consulta|hospital|laborat[óo]rio|exame|sa[úu]de|dentista|odonto|academia|gym|smart fit|health|fitness|wellness|doctor|pharmacy/.test(
       text
     )
   ) {
     return {
-      category: 'Saúde & Bem-Estar',
+      category: 'Health & Wellness',
       iconName: 'medical-outline',
       explanation:
-        'Gastos com medicamentos, saúde, cuidados pessoais, consultas ou atividades físicas.',
+        'Expenses on pharmacy, healthcare, personal care, medical visits, or fitness.',
     };
   }
 
   // Housing & Utilities
   if (
-    /luz|água|agua|energia|enel|sabesp|cpfl|internet|claro|vivo|tim|g[áa]s|aluguel|condom[íi]nio|iptu|boleto|fatura|reparo|manuten[çc][ãa]o/.test(
+    /luz|água|agua|energia|enel|sabesp|cpfl|internet|claro|vivo|tim|g[áa]s|aluguel|condom[íi]nio|iptu|boleto|fatura|reparo|manuten[çc][ãa]o|utility|rent|bills|maintenance/.test(
       text
     )
   ) {
     return {
-      category: 'Moradia & Contas Essenciais',
+      category: 'Housing & Utilities',
       iconName: 'flash-outline',
       explanation:
-        'Contas essenciais, consumo doméstico ou despesas fixas de utilidades.',
+        'Essential bills, household consumption, or recurring utility expenses.',
     };
   }
 
   // Banking & Transfers
-  if (/pix|ted|doc|transfer[êe]ncia|pagamento|dep[óo]sito|saque|iof|tarifa/.test(text)) {
+  if (/pix|ted|doc|transfer[êe]ncia|pagamento|dep[óo]sito|saque|iof|tarifa|transfer|wire|deposit|bank/.test(text)) {
     return {
-      category: 'Transferência & Finanças',
+      category: 'Transfers & Finance',
       iconName: 'swap-horizontal-outline',
       explanation:
-        'Transação bancária direta realizada via Pix, transferência entre contas ou tarifas.',
+        'Direct bank transactions, transfers between accounts, or bank fees.',
     };
   }
 
@@ -146,15 +148,15 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
       category: `#${tags[0].toUpperCase()}`,
       iconName: 'pricetag-outline',
       explanation:
-        'Movimentação financeira categorizada a partir das etiquetas vinculadas.',
+        'Financial activity categorized based on attached tags.',
     };
   }
 
   return {
-    category: 'Despesa Geral',
+    category: 'General Expense',
     iconName: 'receipt-outline',
     explanation:
-      'Registro financeiro geral para acompanhamento e controle de despesas.',
+      'General financial record for expense tracking and monitoring.',
   };
 }
 
@@ -162,43 +164,52 @@ export default function TransactionDetailsModal({
   visible,
   expense,
   onClose,
+  onEdit,
 }: TransactionDetailsModalProps) {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { expenses, togglePaid } = useExpenses();
   const { cards } = useCards();
 
+  const lastExpenseRef = useRef<Expense | null>(expense);
+  if (expense) {
+    lastExpenseRef.current = expense;
+  }
+  const activeExpense = expense || lastExpenseRef.current;
+
   const linkedCard = useMemo(() => {
-    if (!expense?.cardId) return null;
-    return cards.find((c) => c.id === expense.cardId) || null;
-  }, [cards, expense?.cardId]);
+    if (!activeExpense?.cardId) return null;
+    return cards.find((c) => c.id === activeExpense.cardId) || null;
+  }, [cards, activeExpense?.cardId]);
 
   const insight = useMemo(() => {
-    if (!expense) return null;
-    return inferCategoryAndInsight(expense.description, expense.tags || []);
-  }, [expense]);
+    if (!activeExpense) return null;
+    return inferCategoryAndInsight(activeExpense.description, activeExpense.tags || []);
+  }, [activeExpense]);
 
   // Statistics for this specific expense
   const stats = useMemo(() => {
-    if (!expense) return null;
+    if (!activeExpense) return null;
 
     // Monthly total
     const monthExpenses = expenses.filter(
       (e) =>
-        e.date.getMonth() === expense.date.getMonth() &&
-        e.date.getFullYear() === expense.date.getFullYear()
+        e.date.getMonth() === activeExpense.date.getMonth() &&
+        e.date.getFullYear() === activeExpense.date.getFullYear()
     );
     const monthTotal = monthExpenses.reduce((acc, e) => acc + e.amount, 0);
     const monthPercentage =
-      monthTotal > 0 ? Math.min(100, (expense.amount / monthTotal) * 100) : 0;
+      monthTotal > 0 ? Math.min(100, (activeExpense.amount / monthTotal) * 100) : 0;
 
     // Card limit share
     const cardLimitShare =
       linkedCard && linkedCard.limit > 0
-        ? Math.min(100, (expense.amount / linkedCard.limit) * 100)
+        ? Math.min(100, (activeExpense.amount / linkedCard.limit) * 100)
         : null;
 
     // Vendor occurrence count
     const vendorOccurrences = expenses.filter(
-      (e) => e.description.toLowerCase().trim() === expense.description.toLowerCase().trim()
+      (e) => e.description.toLowerCase().trim() === activeExpense.description.toLowerCase().trim()
     ).length;
 
     return {
@@ -207,103 +218,188 @@ export default function TransactionDetailsModal({
       cardLimitShare,
       vendorOccurrences,
     };
-  }, [expense, expenses, linkedCard]);
+  }, [activeExpense, expenses, linkedCard]);
 
-  if (!expense) return null;
+  const dotScaleAnim = useRef(new Animated.Value(1)).current;
+  const haloScaleAnim = useRef(new Animated.Value(1)).current;
+  const haloOpacityAnim = useRef(new Animated.Value(0)).current;
+  const pillScaleAnim = useRef(new Animated.Value(1)).current;
 
   const handleTogglePaidStatus = async () => {
+    if (!activeExpense) return;
+    const willBePaid = !activeExpense.paid;
     if (Platform.OS !== 'web') {
       try {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (willBePaid) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+          await Haptics.selectionAsync();
+        }
       } catch {
         // Silently ignore
       }
     }
-    await togglePaid(expense.id);
+
+    // Trigger snappy spring pop & expanding halo wave
+    dotScaleAnim.setValue(1);
+    haloScaleAnim.setValue(1);
+    haloOpacityAnim.setValue(0.85);
+
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(pillScaleAnim, {
+          toValue: 0.94,
+          duration: 90,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(pillScaleAnim, {
+          toValue: 1,
+          tension: 75,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.spring(dotScaleAnim, {
+          toValue: 1.5,
+          tension: 85,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+        Animated.spring(dotScaleAnim, {
+          toValue: 1,
+          tension: 70,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(haloScaleAnim, {
+        toValue: 2.8,
+        duration: 380,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+        useNativeDriver: true,
+      }),
+      Animated.timing(haloOpacityAnim, {
+        toValue: 0,
+        duration: 380,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    try {
+      await togglePaid(activeExpense.id);
+    } finally {
+      onClose();
+    }
   };
 
-  const formattedDate = expense.date.toLocaleDateString('pt-BR', {
+  if (!activeExpense) {
+    return (
+      <BottomSheetModal
+        visible={false}
+        onClose={onClose}
+      >
+        <View />
+      </BottomSheetModal>
+    );
+  }
+
+  const formattedDate = activeExpense.date.toLocaleDateString('en-US', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
     year: 'numeric',
   });
 
-  const formattedShortDate = expense.date.toLocaleDateString('pt-BR', {
+  const formattedShortDate = activeExpense.date.toLocaleDateString('en-US', {
     day: '2-digit',
-    month: '2-digit',
+    month: 'short',
     year: 'numeric',
   });
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-
-        <View style={styles.sheetContainer}>
-          {/* Top Sheet Handle */}
-          <View style={styles.sheetHandle} />
-
-          {/* Modal Header */}
-          <View style={styles.headerRow}>
-            <View style={styles.headerTagWrapper}>
-              <View style={styles.headerDot} />
-              <Text style={styles.headerTitle}>TRANSACTION DETAILS</Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeBtn}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close" size={18} color="#ffffff" />
-            </TouchableOpacity>
+    <BottomSheetModal
+      visible={visible && !!expense}
+      onClose={onClose}
+      customHeader={
+        <View style={styles.headerRow}>
+          <View style={styles.headerTagWrapper}>
+            <View style={styles.headerDot} />
+            <Text style={styles.headerTitle}>TRANSACTION DETAILS</Text>
           </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
+          <View style={styles.headerActions}>
+            {onEdit && (
+              <TouchableOpacity
+                onPress={() => {
+                  onClose();
+                  onEdit(activeExpense);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="pencil-outline" size={19} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      }
+    >
             {/* Amount & Status Section */}
             <View style={styles.heroSection}>
-              <Text style={styles.heroAmount}>{formatCurrency(expense.amount)}</Text>
-              <Text style={styles.heroDescription}>{expense.description}</Text>
+              <Text style={styles.heroAmount}>{formatCurrency(activeExpense.amount)}</Text>
+              <Text style={styles.heroDescription}>{activeExpense.description}</Text>
 
               {/* Status and Date Pills */}
               <View style={styles.heroPillRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.statusPill,
-                    expense.paid ? styles.statusPillPaid : styles.statusPillPending,
-                  ]}
-                  onPress={handleTogglePaidStatus}
-                  activeOpacity={0.8}
-                >
-                  <View
+                <Animated.View style={{ transform: [{ scale: pillScaleAnim }] }}>
+                  <TouchableOpacity
                     style={[
-                      styles.statusDot,
-                      expense.paid ? styles.statusDotPaid : styles.statusDotPending,
+                      styles.statusPill,
+                      activeExpense.paid ? styles.statusPillPaid : styles.statusPillPending,
                     ]}
-                  />
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      expense.paid ? styles.statusPillTextPaid : styles.statusPillTextPending,
-                    ]}
+                    onPress={handleTogglePaidStatus}
+                    activeOpacity={0.85}
                   >
-                    {expense.paid ? 'PAGO' : 'PENDENTE'}
-                  </Text>
-                </TouchableOpacity>
+                    <View style={styles.dotContainer}>
+                      <Animated.View
+                        style={[
+                          styles.statusHalo,
+                          {
+                            backgroundColor: activeExpense.paid ? colors.success : colors.primary,
+                            opacity: haloOpacityAnim,
+                            transform: [{ scale: haloScaleAnim }],
+                          },
+                        ]}
+                      />
+                      <Animated.View
+                        style={[
+                          styles.statusDot,
+                          activeExpense.paid ? styles.statusDotPaid : styles.statusDotPending,
+                          { transform: [{ scale: dotScaleAnim }] },
+                        ]}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        activeExpense.paid ? styles.statusPillTextPaid : styles.statusPillTextPending,
+                      ]}
+                    >
+                      {activeExpense.paid ? 'PAID' : 'PENDING'}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
 
                 <View style={styles.datePill}>
-                  <Ionicons name="calendar-outline" size={12} color={COLORS.textSecondary} />
+                  <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
                   <Text style={styles.datePillText}>{formattedShortDate}</Text>
                 </View>
               </View>
@@ -314,7 +410,7 @@ export default function TransactionDetailsModal({
               <View style={styles.insightCard}>
                 <View style={styles.insightHeaderRow}>
                   <View style={styles.insightTitleContainer}>
-                    <Ionicons name={insight.iconName} size={15} color={COLORS.primary} />
+                    <Ionicons name={insight.iconName} size={15} color={colors.primary} />
                     <Text style={styles.insightTitle}>FURTHER INSIGHTS</Text>
                   </View>
                   <View style={styles.categoryBadge}>
@@ -330,35 +426,35 @@ export default function TransactionDetailsModal({
                 <View style={styles.insightMetricsRow}>
                   {stats && (
                     <View style={styles.insightMetricItem}>
-                      <Text style={styles.insightMetricLabel}>PESO NO MÊS</Text>
+                      <Text style={styles.insightMetricLabel}>MONTH SHARE</Text>
                       <Text style={styles.insightMetricValue}>
                         {stats.monthPercentage.toFixed(1)}%
                       </Text>
                       <Text style={styles.insightMetricSub}>
-                        de {formatCurrency(stats.monthTotal)}
+                        of {formatCurrency(stats.monthTotal)}
                       </Text>
                     </View>
                   )}
 
                   {stats && stats.cardLimitShare !== null && (
                     <View style={styles.insightMetricItem}>
-                      <Text style={styles.insightMetricLabel}>CONSUMO DO LIMITE</Text>
+                      <Text style={styles.insightMetricLabel}>LIMIT USAGE</Text>
                       <Text style={styles.insightMetricValue}>
                         {stats.cardLimitShare.toFixed(1)}%
                       </Text>
                       <Text style={styles.insightMetricSub}>
-                        {linkedCard ? `${linkedCard.brand.toUpperCase()}` : 'Cartão'}
+                        {linkedCard ? `${linkedCard.brand.toUpperCase()}` : 'Card'}
                       </Text>
                     </View>
                   )}
 
                   <View style={styles.insightMetricItem}>
-                    <Text style={styles.insightMetricLabel}>HISTÓRICO</Text>
+                    <Text style={styles.insightMetricLabel}>HISTORY</Text>
                     <Text style={styles.insightMetricValue}>
                       {stats?.vendorOccurrences === 1 ? '1x' : `${stats?.vendorOccurrences}x`}
                     </Text>
                     <Text style={styles.insightMetricSub}>
-                      {stats?.vendorOccurrences === 1 ? 'Primeira vez' : 'Registros'}
+                      {stats?.vendorOccurrences === 1 ? 'First time' : 'Records'}
                     </Text>
                   </View>
                 </View>
@@ -370,10 +466,10 @@ export default function TransactionDetailsModal({
               {/* Responsible Person */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
-                  <Ionicons name="person-outline" size={15} color={COLORS.textSecondary} />
-                  <Text style={styles.specLabel}>RESPONSÁVEL</Text>
+                  <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
+                  <Text style={styles.specLabel}>RESPONSIBLE</Text>
                 </View>
-                <Text style={styles.specValue}>{expense.person || 'Geral'}</Text>
+                <Text style={styles.specValue}>{activeExpense.person || 'General'}</Text>
               </View>
 
               <View style={styles.specDivider} />
@@ -381,8 +477,8 @@ export default function TransactionDetailsModal({
               {/* Full Date */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
-                  <Ionicons name="time-outline" size={15} color={COLORS.textSecondary} />
-                  <Text style={styles.specLabel}>DATA COMPLETA</Text>
+                  <Ionicons name="time-outline" size={15} color={colors.textSecondary} />
+                  <Text style={styles.specLabel}>FULL DATE</Text>
                 </View>
                 <Text style={styles.specValueCap}>{formattedDate}</Text>
               </View>
@@ -392,13 +488,13 @@ export default function TransactionDetailsModal({
               {/* Payment Method / Card */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
-                  <Ionicons name="card-outline" size={15} color={COLORS.textSecondary} />
-                  <Text style={styles.specLabel}>MÉTODO / CARTÃO</Text>
+                  <Ionicons name="card-outline" size={15} color={colors.textSecondary} />
+                  <Text style={styles.specLabel}>METHOD / CARD</Text>
                 </View>
                 <Text style={styles.specValue}>
                   {linkedCard
                     ? `${linkedCard.brand.toUpperCase()} •••• ${linkedCard.lastDigits}`
-                    : 'Carteira / Outros'}
+                    : 'Cash / Other'}
                 </Text>
               </View>
 
@@ -407,23 +503,23 @@ export default function TransactionDetailsModal({
               {/* Source */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
-                  <Ionicons name="hardware-chip-outline" size={15} color={COLORS.textSecondary} />
-                  <Text style={styles.specLabel}>ORIGEM DO REGISTRO</Text>
+                  <Ionicons name="hardware-chip-outline" size={15} color={colors.textSecondary} />
+                  <Text style={styles.specLabel}>RECORD SOURCE</Text>
                 </View>
                 <Text style={styles.specValue}>
-                  {expense.source
-                    ? expense.source.toUpperCase()
+                  {activeExpense.source
+                    ? activeExpense.source.toUpperCase()
                     : 'MANUAL'}
                 </Text>
               </View>
             </View>
 
             {/* Tags Row */}
-            {expense.tags && expense.tags.length > 0 && (
+            {activeExpense.tags && activeExpense.tags.length > 0 && (
               <View style={styles.tagsSection}>
-                <Text style={styles.tagsSectionTitle}>TAGS ASSOCIADAS</Text>
+                <Text style={styles.tagsSectionTitle}>ATTACHED TAGS</Text>
                 <View style={styles.tagsWrapper}>
-                  {expense.tags.map((tag, idx) => (
+                  {activeExpense.tags.map((tag, idx) => (
                     <View key={idx} style={styles.tagBadge}>
                       <Text style={styles.tagBadgeText}>#{tag}</Text>
                     </View>
@@ -436,341 +532,323 @@ export default function TransactionDetailsModal({
             <TouchableOpacity
               style={[
                 styles.actionBtn,
-                expense.paid ? styles.actionBtnSecondary : styles.actionBtnPrimary,
+                activeExpense.paid ? styles.actionBtnSecondary : styles.actionBtnPrimary,
               ]}
               onPress={handleTogglePaidStatus}
               activeOpacity={0.8}
             >
               <Ionicons
-                name={expense.paid ? 'refresh-outline' : 'checkmark-circle-outline'}
+                name={activeExpense.paid ? 'refresh-outline' : 'checkmark-circle-outline'}
                 size={18}
-                color={expense.paid ? COLORS.primary : '#ffffff'}
+                color={activeExpense.paid ? colors.primary : colors.primaryText}
               />
               <Text
                 style={[
                   styles.actionBtnText,
-                  expense.paid && styles.actionBtnTextSecondary,
+                  activeExpense.paid && styles.actionBtnTextSecondary,
                 ]}
               >
-                {expense.paid ? 'MARCAR COMO PENDENTE' : 'MARCAR COMO PAGO'}
+                {activeExpense.paid ? 'MARK AS UNPAID' : 'MARK AS PAID'}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#121216',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: '#24242e',
-    borderBottomWidth: 0,
-    maxHeight: '88%',
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#33333e',
-    alignSelf: 'center',
-    marginBottom: 14,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  headerTagWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.primary,
-  },
-  headerTitle: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    letterSpacing: 1.2,
-  },
-  closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: '#1c1c24',
-    borderWidth: 1,
-    borderColor: '#2a2a36',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  heroSection: {
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-  },
-  heroAmount: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 34,
-    color: '#ffffff',
-    letterSpacing: 0.5,
-  },
-  heroDescription: {
-    fontFamily: FONTS.medium,
-    fontSize: 18,
-    color: '#ffffff',
-    marginTop: 6,
-    lineHeight: 24,
-  },
-  heroPillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-  },
-  statusPillPaid: {
-    backgroundColor: 'rgba(48, 209, 88, 0.1)',
-    borderColor: COLORS.success,
-  },
-  statusPillPending: {
-    backgroundColor: 'rgba(255, 69, 58, 0.1)',
-    borderColor: COLORS.primary,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  statusDotPaid: {
-    backgroundColor: COLORS.success,
-  },
-  statusDotPending: {
-    backgroundColor: COLORS.primary,
-  },
-  statusPillText: {
-    fontFamily: FONTS.ndotCaps || FONTS.bold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-  },
-  statusPillTextPaid: {
-    color: COLORS.success,
-  },
-  statusPillTextPending: {
-    color: COLORS.primary,
-  },
-  datePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#181820',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: '#262632',
-  },
-  datePillText: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-  insightCard: {
-    backgroundColor: '#16161c',
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#262632',
-    padding: 16,
-    marginTop: 14,
-  },
-  insightHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  insightTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  insightTitle: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 11,
-    color: COLORS.primary,
-    letterSpacing: 1,
-  },
-  categoryBadge: {
-    backgroundColor: '#201518',
-    borderWidth: 1,
-    borderColor: '#451f24',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.xs,
-  },
-  categoryBadgeText: {
-    fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: COLORS.primary,
-  },
-  insightExplanation: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: '#d2d2db',
-    lineHeight: 18,
-    marginTop: 10,
-  },
-  insightDivider: {
-    height: 1,
-    backgroundColor: '#22222c',
-    marginVertical: 12,
-  },
-  insightMetricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  insightMetricItem: {
-    flex: 1,
-  },
-  insightMetricLabel: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 9,
-    color: COLORS.textSecondary,
-    letterSpacing: 0.6,
-    marginBottom: 4,
-  },
-  insightMetricValue: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 16,
-    color: '#ffffff',
-    letterSpacing: 0.5,
-  },
-  insightMetricSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 10,
-    color: '#6c6c78',
-    marginTop: 2,
-  },
-  specsCard: {
-    backgroundColor: '#16161c',
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#24242e',
-    marginTop: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 16,
-  },
-  specRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  specLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  specLabel: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    letterSpacing: 0.8,
-  },
-  specValue: {
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-    color: '#ffffff',
-  },
-  specValueCap: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: '#d0d0d8',
-    textTransform: 'capitalize',
-  },
-  specDivider: {
-    height: 1,
-    backgroundColor: '#202028',
-  },
-  tagsSection: {
-    marginTop: 14,
-  },
-  tagsSectionTitle: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  tagsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  tagBadge: {
-    backgroundColor: '#1c1c24',
-    borderWidth: 1,
-    borderColor: '#2c2c38',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.xs,
-  },
-  tagBadgeText: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: '#a0a0b0',
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: 14,
-    marginTop: 20,
-  },
-  actionBtnPrimary: {
-    backgroundColor: COLORS.primary,
-  },
-  actionBtnSecondary: {
-    backgroundColor: '#1e1618',
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  actionBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: '#ffffff',
-    letterSpacing: 0.5,
-  },
-  actionBtnTextSecondary: {
-    color: COLORS.primary,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    headerTagWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    headerDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+    headerTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 12,
+      color: colors.textSecondary,
+      letterSpacing: 1.2,
+    },
+    scrollContent: {
+      paddingHorizontal: 0,
+      paddingBottom: 20,
+    },
+    heroSection: {
+      alignItems: 'flex-start',
+      paddingVertical: 10,
+    },
+    heroAmount: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 34,
+      color: colors.text,
+      letterSpacing: 0.5,
+    },
+    heroDescription: {
+      fontFamily: FONTS.medium,
+      fontSize: 18,
+      color: colors.text,
+      marginTop: 6,
+      lineHeight: 24,
+    },
+    heroPillRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 12,
+    },
+    statusPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+    },
+    statusPillPaid: {
+      backgroundColor: 'rgba(48, 209, 88, 0.12)',
+      borderColor: colors.success,
+    },
+    statusPillPending: {
+      backgroundColor: colors.primaryMuted,
+      borderColor: colors.primary,
+    },
+    dotContainer: {
+      width: 14,
+      height: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+    },
+    statusHalo: {
+      position: 'absolute',
+      width: 12,
+      height: 12,
+      borderRadius: BORDER_RADIUS.full,
+    },
+    statusDot: {
+      width: 7,
+      height: 7,
+      borderRadius: BORDER_RADIUS.full,
+    },
+    statusDotPaid: {
+      backgroundColor: colors.success,
+    },
+    statusDotPending: {
+      backgroundColor: colors.primary,
+    },
+    statusPillText: {
+      fontFamily: FONTS.ndotCaps || FONTS.bold,
+      fontSize: 11,
+      letterSpacing: 0.8,
+    },
+    statusPillTextPaid: {
+      color: colors.success,
+    },
+    statusPillTextPending: {
+      color: colors.primary,
+    },
+    datePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.cardBackgroundLight,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    datePillText: {
+      fontFamily: FONTS.regular,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    insightCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      marginTop: 14,
+    },
+    insightHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    insightTitleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    insightTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 11,
+      color: colors.primary,
+      letterSpacing: 1,
+    },
+    categoryBadge: {
+      backgroundColor: colors.primaryMuted,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.xs,
+    },
+    categoryBadgeText: {
+      fontFamily: FONTS.medium,
+      fontSize: 11,
+      color: colors.primary,
+    },
+    insightExplanation: {
+      fontFamily: FONTS.regular,
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 18,
+      marginTop: 10,
+    },
+    insightDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 12,
+    },
+    insightMetricsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    insightMetricItem: {
+      flex: 1,
+    },
+    insightMetricLabel: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 9,
+      color: colors.textSecondary,
+      letterSpacing: 0.6,
+      marginBottom: 4,
+    },
+    insightMetricValue: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 16,
+      color: colors.text,
+      letterSpacing: 0.5,
+    },
+    insightMetricSub: {
+      fontFamily: FONTS.regular,
+      fontSize: 10,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    specsCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 12,
+      paddingVertical: 4,
+      paddingHorizontal: 16,
+    },
+    specRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    specLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    specLabel: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 10,
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+    },
+    specValue: {
+      fontFamily: FONTS.medium,
+      fontSize: 13,
+      color: colors.text,
+    },
+    specValueCap: {
+      fontFamily: FONTS.regular,
+      fontSize: 12,
+      color: colors.textSecondary,
+      textTransform: 'capitalize',
+    },
+    specDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    tagsSection: {
+      marginTop: 14,
+    },
+    tagsSectionTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 10,
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 8,
+    },
+    tagsWrapper: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    tagBadge: {
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: BORDER_RADIUS.xs,
+    },
+    tagBadgeText: {
+      fontFamily: FONTS.regular,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: BORDER_RADIUS.md,
+      paddingVertical: 14,
+      marginTop: 20,
+    },
+    actionBtnPrimary: {
+      backgroundColor: colors.primary,
+    },
+    actionBtnSecondary: {
+      backgroundColor: colors.cardBackground,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    actionBtnText: {
+      fontFamily: FONTS.bold,
+      fontSize: 13,
+      color: colors.primaryText,
+      letterSpacing: 0.5,
+    },
+    actionBtnTextSecondary: {
+      color: colors.primary,
+    },
+  });
+}

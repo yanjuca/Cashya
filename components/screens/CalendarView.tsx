@@ -1,9 +1,11 @@
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +13,8 @@ import {
   View,
 } from 'react-native';
 import { Expense } from '../../contexts/ExpensesContext';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { toDateKey } from '../../utils/formatters';
 
 interface CalendarViewProps {
@@ -38,6 +41,8 @@ export default function CalendarView({
   onChangeMonth,
   onGestureActive,
 }: CalendarViewProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const scrollViewRef = useRef<ScrollView>(null);
   const isUserScrollingRef = useRef(false);
 
@@ -207,7 +212,14 @@ export default function CalendarView({
                   isToday && !isSelected && styles.dayCellToday,
                 ]}
                 activeOpacity={0.7}
-                onPress={() => onSelectDate(item.date)}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    try {
+                      Haptics.selectionAsync();
+                    } catch {}
+                  }
+                  onSelectDate(item.date);
+                }}
               >
                 <Text
                   style={[
@@ -258,97 +270,99 @@ export default function CalendarView({
   );
 }
 
-const styles = StyleSheet.create({
-  outerContainer: {
-    marginHorizontal: 20,
-    marginBottom: 10,
-    width: CALENDAR_WIDTH,
-    overflow: 'hidden',
-  },
-  horizontalScroll: {
-    width: CALENDAR_WIDTH,
-  },
-  scrollContent: {
-    alignItems: 'flex-start',
-  },
-  monthCard: {
-    width: CALENDAR_WIDTH,
-    backgroundColor: '#141418',
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#22222a',
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 10,
-    overflow: 'hidden',
-  },
-  weekdaysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#202028',
-    paddingBottom: 6,
-  },
-  weekdayCell: {
-    width: CELL_SIZE,
-    alignItems: 'center',
-  },
-  weekdayText: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    letterSpacing: 1,
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE + 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: BORDER_RADIUS.sm,
-    marginVertical: 2,
-  },
-  dayCellSelected: {
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-  },
-  dayCellToday: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  dayNumberText: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  dayNumberTextSelected: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  dayNumberTextToday: {
-    color: COLORS.text,
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    height: 6,
-    marginTop: 3,
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: BORDER_RADIUS.full,
-  },
-  dotPending: {
-    backgroundColor: COLORS.error, // Red
-  },
-  dotPaid: {
-    backgroundColor: COLORS.success, // Green
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    outerContainer: {
+      marginHorizontal: 20,
+      marginBottom: 10,
+      width: CALENDAR_WIDTH,
+      overflow: 'hidden',
+    },
+    horizontalScroll: {
+      width: CALENDAR_WIDTH,
+    },
+    scrollContent: {
+      alignItems: 'flex-start',
+    },
+    monthCard: {
+      width: CALENDAR_WIDTH,
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingTop: 12,
+      paddingBottom: 10,
+      overflow: 'hidden',
+    },
+    weekdaysRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      paddingBottom: 6,
+    },
+    weekdayCell: {
+      width: CELL_SIZE,
+      alignItems: 'center',
+    },
+    weekdayText: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 10,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+    },
+    daysGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    dayCell: {
+      width: CELL_SIZE,
+      height: CELL_SIZE + 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: BORDER_RADIUS.sm,
+      marginVertical: 2,
+    },
+    dayCellSelected: {
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    dayCellToday: {
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    dayNumberText: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 14,
+      color: colors.text,
+    },
+    dayNumberTextSelected: {
+      color: colors.primary,
+      fontWeight: 'bold',
+    },
+    dayNumberTextToday: {
+      color: colors.text,
+    },
+    dotsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      height: 6,
+      marginTop: 3,
+    },
+    dot: {
+      width: 4,
+      height: 4,
+      borderRadius: BORDER_RADIUS.full,
+    },
+    dotPending: {
+      backgroundColor: colors.primary,
+    },
+    dotPaid: {
+      backgroundColor: colors.success,
+    },
+  });
+}
