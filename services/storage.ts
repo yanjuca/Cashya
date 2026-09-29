@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeMode } from '../theme';
 import { CreditCard, Expense } from '../types';
 
 const STORAGE_KEYS = {
   EXPENSES: '@cashya:expenses',
   CARDS: '@cashya:cards',
   LAST_ACTIVE: '@cashya:last_active_at',
+  THEME_MODE: '@cashya:theme_mode',
+  ACCENT_COLOR: '@cashya:accent_color',
 } as const;
 
 export const StorageService = {
@@ -65,6 +68,47 @@ export const StorageService = {
       await AsyncStorage.setItem(STORAGE_KEYS.CARDS, JSON.stringify(cards));
     } catch (error) {
       console.error('Error saving cards to storage:', error);
+      throw error;
+    }
+  },
+
+  async getThemeMode(): Promise<ThemeMode | null> {
+    try {
+      const mode = await AsyncStorage.getItem(STORAGE_KEYS.THEME_MODE);
+      if (mode === 'dark' || mode === 'light') {
+        return mode;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error reading theme mode from storage:', error);
+      return null;
+    }
+  },
+
+  async saveThemeMode(mode: ThemeMode): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.THEME_MODE, mode);
+    } catch (error) {
+      console.error('Error saving theme mode to storage:', error);
+      throw error;
+    }
+  },
+
+  async getAccentColor(): Promise<string | null> {
+    try {
+      const color = await AsyncStorage.getItem(STORAGE_KEYS.ACCENT_COLOR);
+      return color;
+    } catch (error) {
+      console.error('Error reading accent color from storage:', error);
+      return null;
+    }
+  },
+
+  async saveAccentColor(color: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.ACCENT_COLOR, color);
+    } catch (error) {
+      console.error('Error saving accent color to storage:', error);
       throw error;
     }
   },

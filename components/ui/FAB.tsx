@@ -14,7 +14,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 
 export interface SpeedDialAction {
   id: string;
@@ -38,26 +39,38 @@ export default function FAB({
   bottomOffset = 95,
   style,
 }: FABProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [isOpen, setIsOpen] = useState(false);
 
-  const expandAnim = useRef(new Animated.Value(0)).current;
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const visibilityAnim = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const mainBtnScale = useRef(new Animated.Value(1)).current;
+
+  // Staggered animated values for each speed dial action
+  const actionAnimsMap = useRef<Map<string, Animated.Value>>(new Map());
+
+  // Ensure an animated value exists for each action
+  (actions || []).forEach((action) => {
+    if (!actionAnimsMap.current.has(action.id)) {
+      actionAnimsMap.current.set(action.id, new Animated.Value(0));
+    }
+  });
 
   // Animate visibility (e.g. when changing tabs)
   useEffect(() => {
     Animated.timing(visibilityAnim, {
       toValue: visible ? 1 : 0,
       duration: visible ? 350 : 250,
-      easing: visible ? Easing.out(Easing.cubic) : Easing.inOut(Easing.ease),
+      easing: visible ? Easing.bezier(0.16, 1, 0.3, 1) : Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
 
     if (!visible && isOpen) {
       setIsOpen(false);
     }
-  }, [visible]);
+  }, [visible, isOpen, visibilityAnim]);
 
   // Handle Android back button to dismiss speed dial
   useEffect(() => {
@@ -71,41 +84,56 @@ export default function FAB({
     return () => backHandler.remove();
   }, [isOpen]);
 
-  // Open/close animations
+  // Staggered open/close animations
   useEffect(() => {
+    if (!actions || actions.length === 0) return;
+
     if (isOpen) {
-      Animated.parallel([
-        Animated.spring(expandAnim, {
+      const openAnims = actions.map((action) => {
+        const anim = actionAnimsMap.current.get(action.id)!;
+        return Animated.spring(anim, {
           toValue: 1,
           friction: 6,
-          tension: 45,
+          tension: 52,
           useNativeDriver: true,
-        }),
+        });
+      });
+
+      Animated.parallel([
+        Animated.stagger(45, openAnims),
         Animated.timing(rotationAnim, {
           toValue: 1,
-          duration: 250,
-          easing: Easing.out(Easing.cubic),
+          duration: 300,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
           useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
           toValue: 1,
-          duration: 200,
-          easing: Easing.out(Easing.cubic),
+          duration: 250,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
           useNativeDriver: true,
         }),
       ]).start();
     } else {
+      const closeAnims = actions
+        .slice()
+        .reverse()
+        .map((action) => {
+          const anim = actionAnimsMap.current.get(action.id)!;
+          return Animated.timing(anim, {
+            toValue: 0,
+            duration: 200,
+            easing: Easing.bezier(0.16, 1, 0.3, 1),
+            useNativeDriver: true,
+          });
+        });
+
       Animated.parallel([
-        Animated.timing(expandAnim, {
-          toValue: 0,
-          duration: 180,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
+        Animated.stagger(30, closeAnims),
         Animated.timing(rotationAnim, {
           toValue: 0,
-          duration: 200,
-          easing: Easing.inOut(Easing.ease),
+          duration: 240,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
           useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
@@ -116,7 +144,7 @@ export default function FAB({
         }),
       ]).start();
     }
-  }, [isOpen]);
+  }, [isOpen, actions, rotationAnim, backdropAnim]);
 
   const closeSpeedDial = () => {
     if (Platform.OS !== 'web') {
@@ -147,6 +175,24 @@ export default function FAB({
     } else if (onPress) {
       onPress();
     }
+  };
+
+  const handleMainPressIn = () => {
+    Animated.spring(mainBtnScale, {
+      toValue: 0.92,
+      tension: 80,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleMainPressOut = () => {
+    Animated.spring(mainBtnScale, {
+      toValue: 1,
+      tension: 70,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleActionPress = (action: SpeedDialAction) => {
@@ -201,17 +247,19 @@ export default function FAB({
           pointerEvents={isOpen ? 'box-none' : 'none'}
         >
           {actions.map((action, index) => {
-            const itemTranslateY = expandAnim.interpolate({
+            const anim = actionAnimsMap.current.get(action.id) || new Animated.Value(0);
+
+            const itemTranslateY = anim.interpolate({
               inputRange: [0, 1],
-              outputRange: [24 * (actions.length - index), 0],
+              outputRange: [20 * (actions.length - index), 0],
             });
-            const itemScale = expandAnim.interpolate({
+            const itemScale = anim.interpolate({
               inputRange: [0, 1],
-              outputRange: [0.7, 1],
+              outputRange: [0.75, 1],
             });
-            const itemOpacity = expandAnim.interpolate({
-              inputRange: [0, 0.4, 1],
-              outputRange: [0, 0.3, 1],
+            const itemOpacity = anim.interpolate({
+              inputRange: [0, 0.3, 1],
+              outputRange: [0, 0.4, 1],
             });
 
             return (
@@ -239,7 +287,7 @@ export default function FAB({
                   style={styles.actionButton}
                   onPress={() => handleActionPress(action)}
                 >
-                  <Ionicons name={action.icon} size={20} color="#ffffff" />
+                  <Ionicons name={action.icon} size={20} color={colors.text} />
                 </TouchableOpacity>
               </Animated.View>
             );
@@ -267,115 +315,121 @@ export default function FAB({
         ]}
         pointerEvents={visible ? 'auto' : 'none'}
       >
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.mainButton}
-          onPress={handleMainPress}
-        >
-          <Animated.View
-            style={{
-              transform: [
-                {
-                  rotate: hasActions
-                    ? rotationAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '45deg'],
-                      })
-                    : '0deg',
-                },
-              ],
-            }}
+        <Animated.View style={{ transform: [{ scale: mainBtnScale }] }}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.mainButton}
+            onPress={handleMainPress}
+            onPressIn={handleMainPressIn}
+            onPressOut={handleMainPressOut}
           >
-            <Ionicons name="add" size={30} color="#ffffff" />
-          </Animated.View>
-        </TouchableOpacity>
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: hasActions
+                      ? rotationAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '45deg'],
+                        })
+                      : '0deg',
+                  },
+                ],
+              }}
+            >
+              <Ionicons name="add" size={30} color={colors.primaryText} />
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  rootOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-  },
-  actionsContainer: {
-    position: 'absolute',
-    right: 22,
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  labelChip: {
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginRight: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  labelText: {
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-    color: COLORS.text,
-    letterSpacing: 0.3,
-  },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6, // Centers 44px button with 56px main button (56 - 44) / 2 = 6
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  mainButtonWrapper: {
-    position: 'absolute',
-    right: 22,
-    width: 56,
-    height: 56,
-  },
-  mainButton: {
-    width: 56,
-    height: 56,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    rootOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.modalBackdrop,
+    },
+    actionsContainer: {
+      position: 'absolute',
+      right: 22,
+      alignItems: 'flex-end',
+      gap: 12,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+    },
+    labelChip: {
+      backgroundColor: colors.cardBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      marginRight: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    labelText: {
+      fontFamily: FONTS.medium,
+      fontSize: 13,
+      color: colors.text,
+      letterSpacing: 0.3,
+    },
+    actionButton: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.cardBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 6,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+      elevation: 4,
+    },
+    mainButtonWrapper: {
+      position: 'absolute',
+      right: 22,
+      width: 56,
+      height: 56,
+    },
+    mainButton: {
+      width: 56,
+      height: 56,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+  });
+}

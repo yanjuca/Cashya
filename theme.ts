@@ -1,30 +1,196 @@
-// Theme configuration based on mockup design
+export type ThemeMode = 'dark' | 'light';
 
-export const COLORS = {
-  // Main colors
-  background: '#000000',
-  backgroundGradientStart: '#140708', // Subtle dark red tint
-  backgroundGradientEnd: '#000000',   // Pure OLED black
-  cardBackground: '#18181c',
-  cardBackgroundLight: '#202026',
-  primary: '#ff453a',
-  primaryDark: '#d32f2f',
-  primaryMuted: 'rgba(255, 69, 58, 0.15)',
-  
+export interface AccentColorOption {
+  id: string;
+  name: string;
+  value: string;
+  contrastText: string;
+  muted: string;
+}
+
+export const ACCENT_COLORS: AccentColorOption[] = [
+  {
+    id: 'crimson',
+    name: 'Crimson',
+    value: '#9B1D20',
+    contrastText: '#ffffff',
+    muted: 'rgba(155, 29, 32, 0.18)',
+  },
+  {
+    id: 'ivory',
+    name: 'Ivory',
+    value: '#EBEBD3',
+    contrastText: '#111115',
+    muted: 'rgba(235, 235, 211, 0.20)',
+  },
+  {
+    id: 'gold',
+    name: 'Gold',
+    value: '#FCDE9C',
+    contrastText: '#111115',
+    muted: 'rgba(252, 222, 156, 0.22)',
+  },
+  {
+    id: 'sage',
+    name: 'Sage',
+    value: '#70A288',
+    contrastText: '#ffffff',
+    muted: 'rgba(112, 162, 136, 0.20)',
+  },
+  {
+    id: 'fog',
+    name: 'Ash',
+    value: '#D3D0CB',
+    contrastText: '#111115',
+    muted: 'rgba(211, 208, 203, 0.22)',
+  },
+];
+
+export function getContrastTextColor(hexColor: string): string {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 165 ? '#111115' : '#ffffff';
+}
+
+export function hexToRgba(hexColor: string, alpha: number): string {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export interface ThemeColors {
+  // Main background & surfaces
+  background: string;
+  backgroundGradientStart: string;
+  backgroundGradientEnd: string;
+  cardBackground: string;
+  cardBackgroundLight: string;
+  cardBackgroundElevated: string;
+
+  // Accents
+  primary: string;
+  primaryDark: string;
+  primaryMuted: string;
+  primaryText: string;
+
   // Text colors
-  text: '#ffffff',
-  textSecondary: '#8a8a93',
-  textMuted: '#55555c',
-  
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+
   // UI colors
-  border: '#24242a',
-  borderLight: '#32323a',
-  success: '#30d158',
-  warning: '#ffd60a',
-  error: '#ff453a',
-  chip: '#e5b842',
-  badgeBackground: '#1d1d22',
-};
+  border: string;
+  borderLight: string;
+  borderSubtle: string;
+  success: string;
+  warning: string;
+  error: string;
+  chip: string;
+  badgeBackground: string;
+
+  // Navigation dock & UI elements
+  dockBackground: string;
+  dockBorder: string;
+  dockCloseBtn: string;
+  dockCloseIcon: string;
+  modalBackdrop: string;
+  modalSheet: string;
+  inputBackground: string;
+  statusBar: 'light-content' | 'dark-content';
+}
+
+export function getThemeColors(mode: ThemeMode = 'dark', accentValue: string = '#9B1D20'): ThemeColors {
+  const isDark = mode === 'dark';
+  const primaryText = getContrastTextColor(accentValue);
+  const primaryMuted = hexToRgba(accentValue, isDark ? 0.18 : 0.15);
+  const backgroundGradientStart = hexToRgba(accentValue, isDark ? 0.16 : 0.18);
+  const backgroundGradientEnd = hexToRgba(accentValue, isDark ? 0.03 : 0.04);
+
+  if (isDark) {
+    return {
+      background: '#000000',
+      backgroundGradientStart,
+      backgroundGradientEnd,
+      cardBackground: '#16161a',
+      cardBackgroundLight: '#202026',
+      cardBackgroundElevated: '#1a1a20',
+
+      primary: accentValue,
+      primaryDark: '#7a1719',
+      primaryMuted,
+      primaryText,
+
+      text: '#ffffff',
+      textSecondary: '#8a8a93',
+      textMuted: '#55555c',
+
+      border: '#24242a',
+      borderLight: '#32323a',
+      borderSubtle: '#1d1d23',
+
+      success: '#30d158',
+      warning: '#ffd60a',
+      error: '#ff453a',
+      chip: '#e5b842',
+      badgeBackground: '#1d1d22',
+
+      dockBackground: '#15151a',
+      dockBorder: '#262630',
+      dockCloseBtn: '#22222a',
+      dockCloseIcon: '#ffffff',
+      modalBackdrop: 'rgba(0, 0, 0, 0.75)',
+      modalSheet: '#16161a',
+      inputBackground: '#0e0e12',
+      statusBar: 'light-content',
+    };
+  }
+
+  // Light Mode (Nothing OS Light)
+  return {
+    background: '#f4f4f7',
+    backgroundGradientStart,
+    backgroundGradientEnd,
+    cardBackground: '#ffffff',
+    cardBackgroundLight: '#ebebf0',
+    cardBackgroundElevated: '#f7f7fa',
+
+    primary: accentValue,
+    primaryDark: '#7a1719',
+    primaryMuted,
+    primaryText,
+
+    text: '#111115',
+    textSecondary: '#6e6e78',
+    textMuted: '#9e9ea8',
+
+    border: '#e4e4eb',
+    borderLight: '#d2d2dc',
+    borderSubtle: '#eeeeee',
+
+    success: '#24a148',
+    warning: '#d97706',
+    error: '#dc2626',
+    chip: '#b45309',
+    badgeBackground: '#ededf2',
+
+    dockBackground: '#ffffff',
+    dockBorder: '#e0e0e8',
+    dockCloseBtn: '#ebebef',
+    dockCloseIcon: '#111115',
+    modalBackdrop: 'rgba(0, 0, 0, 0.55)',
+    modalSheet: '#ffffff',
+    inputBackground: '#f2f2f6',
+    statusBar: 'dark-content',
+  };
+}
+
+// Default export for backwards compatibility
+export const COLORS: ThemeColors = getThemeColors('dark', '#9B1D20');
 
 export const FONTS = {
   ndot: 'Ndot57',           // For app name, numbers, amounts

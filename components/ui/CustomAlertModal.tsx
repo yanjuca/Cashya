@@ -12,7 +12,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { BORDER_RADIUS, FONTS, SPACING, ThemeColors } from '../../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -40,6 +41,8 @@ interface CustomAlertModalProps {
 }
 
 export default function CustomAlertModal({ visible, config, onClose }: CustomAlertModalProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [fadeAnim] = useState(() => new Animated.Value(0));
   const [scaleAnim] = useState(() => new Animated.Value(0.92));
 
@@ -160,7 +163,7 @@ export default function CustomAlertModal({ visible, config, onClose }: CustomAle
     if (config.icon) {
       return {
         name: config.icon,
-        color: resolvedType === 'danger' ? COLORS.primary : '#ffffff',
+        color: resolvedType === 'danger' ? colors.error : colors.text,
         bg: resolvedType === 'danger' ? 'rgba(255, 69, 58, 0.12)' : 'rgba(255, 255, 255, 0.08)',
         border: resolvedType === 'danger' ? 'rgba(255, 69, 58, 0.3)' : 'rgba(255, 255, 255, 0.18)',
       };
@@ -172,28 +175,28 @@ export default function CustomAlertModal({ visible, config, onClose }: CustomAle
           name: config.title.toLowerCase().includes('delete') || config.title.toLowerCase().includes('remove')
             ? 'trash-outline'
             : 'alert-circle-outline',
-          color: COLORS.primary,
+          color: colors.error,
           bg: 'rgba(255, 69, 58, 0.12)',
           border: 'rgba(255, 69, 58, 0.3)',
         };
       case 'warning':
         return {
           name: 'warning-outline',
-          color: COLORS.warning,
+          color: colors.warning,
           bg: 'rgba(255, 214, 10, 0.12)',
           border: 'rgba(255, 214, 10, 0.3)',
         };
       case 'success':
         return {
           name: 'checkmark-circle-outline',
-          color: COLORS.success,
+          color: colors.success,
           bg: 'rgba(48, 209, 88, 0.12)',
           border: 'rgba(48, 209, 88, 0.3)',
         };
       default:
         return {
           name: 'information-circle-outline',
-          color: '#ffffff',
+          color: colors.text,
           bg: 'rgba(255, 255, 255, 0.08)',
           border: 'rgba(255, 255, 255, 0.18)',
         };
@@ -339,123 +342,125 @@ export default function CustomAlertModal({ visible, config, onClose }: CustomAle
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-  },
-  dialogCard: {
-    width: Math.min(width - 48, 360),
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
-    paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#26262e',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.55,
-        shadowRadius: 24,
-      },
-      android: {
-        elevation: 12,
-      },
-    }),
-  },
-  iconBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  title: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 17,
-    letterSpacing: 1.2,
-    color: '#ffffff',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  message: {
-    fontFamily: FONTS.regular,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: 22,
-    paddingHorizontal: 4,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-    marginTop: 4,
-  },
-  singleButtonRow: {
-    width: '100%',
-    marginTop: 4,
-  },
-  buttonColumn: {
-    flexDirection: 'column',
-    gap: 8,
-    width: '100%',
-    marginTop: 4,
-  },
-  button: {
-    height: 46,
-    borderRadius: BORDER_RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonFlex: {
-    flex: 1,
-  },
-  buttonText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-    letterSpacing: 0.3,
-  },
-  cancelButton: {
-    backgroundColor: '#1b1b22',
-    borderWidth: 1,
-    borderColor: '#2e2e38',
-  },
-  cancelButtonText: {
-    color: '#a0a0ab',
-    fontWeight: '600',
-  },
-  confirmButton: {
-    backgroundColor: '#ffffff',
-  },
-  confirmButtonText: {
-    color: '#000000',
-  },
-  destructiveButton: {
-    backgroundColor: COLORS.primary,
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  destructiveButtonText: {
-    color: '#ffffff',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.modalBackdrop,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.xl,
+    },
+    dialogCard: {
+      width: Math.min(width - 48, 360),
+      backgroundColor: colors.modalSheet,
+      borderRadius: BORDER_RADIUS.xl,
+      paddingHorizontal: 22,
+      paddingTop: 24,
+      paddingBottom: 20,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.35,
+          shadowRadius: 24,
+        },
+        android: {
+          elevation: 12,
+        },
+      }),
+    },
+    iconBadge: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      marginBottom: 16,
+    },
+    title: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 17,
+      letterSpacing: 1.2,
+      color: colors.text,
+      textAlign: 'center',
+      textTransform: 'uppercase',
+      marginBottom: 8,
+    },
+    message: {
+      fontFamily: FONTS.regular,
+      fontSize: 13.5,
+      lineHeight: 20,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 22,
+      paddingHorizontal: 4,
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+      marginTop: 4,
+    },
+    singleButtonRow: {
+      width: '100%',
+      marginTop: 4,
+    },
+    buttonColumn: {
+      flexDirection: 'column',
+      gap: 8,
+      width: '100%',
+      marginTop: 4,
+    },
+    button: {
+      height: 46,
+      borderRadius: BORDER_RADIUS.md,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    buttonFlex: {
+      flex: 1,
+    },
+    buttonText: {
+      fontFamily: FONTS.bold,
+      fontSize: 14,
+      letterSpacing: 0.3,
+    },
+    cancelButton: {
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    cancelButtonText: {
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    confirmButton: {
+      backgroundColor: colors.primary,
+    },
+    confirmButtonText: {
+      color: colors.primaryText,
+    },
+    destructiveButton: {
+      backgroundColor: colors.error,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.error,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    destructiveButtonText: {
+      color: '#ffffff',
+    },
+  });
+}

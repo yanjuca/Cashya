@@ -43,6 +43,10 @@ To preserve architectural integrity and avoid visual or technical hallucinations
      - `FONTS.bold` (`'DMSans_700Bold'`): High-emphasis badges, button labels.
    - Always provide fallback when using dot fonts: `fontFamily: FONTS.ndot || FONTS.system`.
 
+6. **STRICT English UI & Copy Standard**:
+   - ❌ NEVER write Portuguese strings, labels, status text (`PAGO`, `PENDENTE`, `SALVAR`), or alert messages in UI components.
+   - ✅ ALL user-facing copy, section headers, button titles, input placeholders, category names, system dialogs, and date formatting (`toLocaleDateString('en-US', ...)`) MUST strictly be in **English**.
+
 ---
 
 ## 🎨 Visual Identity & Nothing OS Aesthetic
@@ -114,6 +118,18 @@ When building or modifying components:
    - **Destructive**: `COLORS.primary`, white text.
 
 4. **Icons**:
-   - Use `@expo/vector-icons` (prefer `Ionicons` or `MaterialIcons`).
+   - Use `@expo/vector-icons` (prefer `Ionicons`).
    - Active state: Filled glyphs (e.g. `wallet`, `swap-horizontal`, `settings`).
    - Inactive state: Outline glyphs (e.g. `wallet-outline`, `swap-horizontal-outline`, `settings-outline`).
+   - Dropdowns & navigation controls prefer typographic / dot-matrix glyphs (`‹`, `›`, `▲`, `▼`).
+
+5. **Modal Bottom Sheets**:
+   - `backdrop`: `backgroundColor: 'rgba(0, 0, 0, 0.75)'`, `justifyContent: 'flex-end'`.
+   - `card`: `backgroundColor: '#16161a'`, `borderTopLeftRadius: 24`, `borderTopRightRadius: 24`, `borderWidth: 1`, `borderColor: '#24242a'`, `padding: 24`, `maxHeight: '88%'`.
+   - Header with `Ndot57` title and `close` icon on the right.
+
+6. **Dock-Coupled Batch Edit Mode**:
+   - The batch edit mode controls (`[✕] N SELECTED` and `[DELETE]`) are coupled directly to the bottom navigation dock (`tabBar` in `_layout.tsx`).
+   - In edit mode, the dock expands upwards (height animates from `64px` to `118px` with spring physics), revealing the edit bar above the tabs.
+   - Screen content has `paddingBottom: 140-150` so cards are never obscured. Top floating bars are avoided.
+
