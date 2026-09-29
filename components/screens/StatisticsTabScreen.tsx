@@ -11,7 +11,11 @@ import { useExpenses } from '../../contexts/ExpensesContext';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
 
-export default function StatisticsTabScreen() {
+export interface StatisticsTabScreenProps {
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
+}
+
+export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenProps = {}) {
   const { expenses } = useExpenses();
 
   const stats = useMemo(() => {
@@ -88,6 +92,8 @@ export default function StatisticsTabScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
         {/* Overview Grid */}
         {expenses.length > 0 && (

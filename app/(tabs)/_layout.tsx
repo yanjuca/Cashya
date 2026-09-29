@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   Modal,
   Platform,
   StatusBar,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import PagerView, { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AddCardModal from '../../components/cards/AddCardModal';
 import AddExpenseScreen from '../../components/screens/AddExpenseScreen';
 import SettingsScreen from '../../components/screens/SettingsScreen';
 import StatisticsTabScreen from '../../components/screens/StatisticsTabScreen';
@@ -67,21 +69,16 @@ export default function TabsLayout() {
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [isCalendarSwiping, setIsCalendarSwiping] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [isTransactionsEditMode, setIsTransactionsEditMode] = useState(false);
+  const [isHomeEditMode, setIsHomeEditMode] = useState(false);
 
   const toggleOpacity = useRef(new Animated.Value(0)).current;
 
-  // FAB should only be visible on Home (0) and Transactions (1)
-  const isFabVisible = currentPage === 0 || currentPage === 1;
-  const fabAnim = useRef(new Animated.Value(1)).current;
+  const isAnyEditMode = isHomeEditMode || isTransactionsEditMode;
 
-  useEffect(() => {
-    Animated.spring(fabAnim, {
-      toValue: isFabVisible ? 1 : 0,
-      friction: 8,
-      tension: 50,
-      useNativeDriver: true,
-    }).start();
-  }, [isFabVisible]);
+  // FAB should only be visible on Home (0) and Transactions (1) and when not in edit mode
+  const isFabVisible = (currentPage === 0 || currentPage === 1) && !isAnyEditMode;
 
   useEffect(() => {
     Animated.timing(toggleOpacity, {
@@ -91,29 +88,42 @@ export default function TabsLayout() {
     }).start();
   }, [currentPage]);
 
-  const handleTabPress = (index: number) => {
-    if (Platform.OS !== 'web') {
-      try {
-        Haptics.selectionAsync();
-      } catch {
-        // Silently ignore if haptics unavailable
-      }
+  // Track scroll position per tab for the top gradient fade
+  const scrollYMap = useRef<{ [key: number]: number }>({ 0: 0, 1: 0, 2: 0, 3: 0 });
+  const topGradientAnim = useRef(new Animated.Value(0)).current;
+
+  // Calculates opacity (0 to 1) based on scroll offset y
+  // Starts fading at y = 0 and reaches 100% opacity smoothly at y = 60
+  const calculateOpacity = (y: number) => {
+    return Math.min(1, Math.max(0, y / 60));
+  };
+
+  const handleScroll = (pageIndex: number, y: number) => {
+    scrollYMap.current[pageIndex] = y;
+    if (pageIndex === currentPage) {
+      topGradientAnim.setValue(calculateOpacity(y));
     }
+  };
+
+  const handleTabPress = (index: number) => {
     setCurrentPage(index);
     pagerRef.current?.setPage(index);
+    Animated.timing(topGradientAnim, {
+      toValue: calculateOpacity(scrollYMap.current[index] || 0),
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handlePageSelected = (e: PagerViewOnPageSelectedEvent) => {
     const nextIndex = e.nativeEvent.position;
     if (nextIndex !== currentPage) {
-      if (Platform.OS !== 'web') {
-        try {
-          Haptics.selectionAsync();
-        } catch {
-          // Silently ignore
-        }
-      }
       setCurrentPage(nextIndex);
+      Animated.timing(topGradientAnim, {
+        toValue: calculateOpacity(scrollYMap.current[nextIndex] || 0),
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -182,7 +192,10 @@ export default function TabsLayout() {
         scrollEnabled={!isCalendarSwiping}
       >
         <View key="home" style={styles.pageContainer}>
-          <WalletHomeScreen />
+          <WalletHomeScreen
+            onScroll={(e) => handleScroll(0, e.nativeEvent.contentOffset.y)}
+            onEditModeChange={setIsHomeEditMode}
+          />
         </View>
 
         <View key="transactions" style={styles.pageContainer}>
@@ -190,17 +203,39 @@ export default function TabsLayout() {
             viewMode={viewMode}
             onViewModeChange={setViewMode}
             onCalendarGestureActive={setIsCalendarSwiping}
+            onScroll={(e) => handleScroll(1, e.nativeEvent.contentOffset.y)}
+            onEditModeChange={setIsTransactionsEditMode}
           />
         </View>
 
         <View key="statistics" style={styles.pageContainer}>
-          <StatisticsTabScreen />
+          <StatisticsTabScreen onScroll={(e) => handleScroll(2, e.nativeEvent.contentOffset.y)} />
         </View>
 
         <View key="settings" style={styles.pageContainer}>
-          <SettingsScreen />
+          <SettingsScreen onScroll={(e) => handleScroll(3, e.nativeEvent.contentOffset.y)} />
         </View>
       </PagerView>
+
+      {/* Top Gradient Fade Overlay (soft fade beneath header only when scrolled, hidden in edit mode) */}
+      {!isAnyEditMode && (
+        <Animated.View
+          style={[
+            styles.topGradient,
+            {
+              opacity: topGradientAnim,
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <LinearGradient
+            colors={['#000000', 'rgba(0, 0, 0, 0.85)', 'rgba(0, 0, 0, 0.4)', 'transparent']}
+            locations={[0, 0.3, 0.65, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+        </Animated.View>
+      )}
 
       {/* Bottom Gradient Fade Overlay */}
       <LinearGradient
@@ -210,7 +245,7 @@ export default function TabsLayout() {
         pointerEvents="none"
       />
 
-      {/* Floating Bottom Navigation Bar */}
+      {/* Floating Bottom Navigation Bar (higher zIndex so FAB slides behind it) */}
       <View style={styles.tabBar}>
         {TABS.map((tab, index) => {
           const focused = currentPage === index;
@@ -234,28 +269,36 @@ export default function TabsLayout() {
         })}
       </View>
 
-      {/* Persistent Floating Action Button (+) with high zIndex above gradient */}
-      <Animated.View
-        style={[
-          styles.fabWrapper,
+      {/* Speed Dial Floating Action Button */}
+      <FAB
+        visible={isFabVisible}
+        bottomOffset={95}
+        actions={[
           {
-            opacity: fabAnim,
-            transform: [{ scale: fabAnim }],
+            id: 'card',
+            label: 'Add Card',
+            icon: 'card-outline',
+            onPress: () => setShowAddCard(true),
+          },
+          {
+            id: 'expense',
+            label: 'Add Expense',
+            icon: 'receipt-outline',
+            onPress: () => setShowAddExpense(true),
           },
         ]}
-        pointerEvents={isFabVisible ? 'auto' : 'none'}
-      >
-        <FAB
-          onPress={() => setShowAddExpense(true)}
-          bottomOffset={0}
-          style={{ position: 'relative', right: 0, bottom: 0 }}
-        />
-      </Animated.View>
+      />
 
       {/* Global Add Expense Modal */}
       <Modal visible={showAddExpense} animationType="slide" presentationStyle="fullScreen">
         <AddExpenseScreen onClose={() => setShowAddExpense(false)} />
       </Modal>
+
+      {/* Global Add Card Modal */}
+      <AddCardModal
+        visible={showAddCard}
+        onClose={() => setShowAddCard(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -272,7 +315,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 10,
     paddingBottom: 12,
-    minHeight: 52,
+    minHeight: 56,
+    backgroundColor: '#000000',
+    zIndex: 10,
+    elevation: 10,
   },
   headerTitle: {
     fontFamily: FONTS.ndot || FONTS.system,
@@ -306,6 +352,14 @@ const styles = StyleSheet.create({
   pageContainer: {
     flex: 1,
   },
+  topGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 56,
+    height: 150,
+    zIndex: 5,
+  },
   bottomGradient: {
     position: 'absolute',
     left: 0,
@@ -331,7 +385,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 14,
     overflow: 'hidden',
-    zIndex: 2,
+    zIndex: 10,
   },
   tabBarItem: {
     flex: 1,
@@ -349,14 +403,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
     marginBottom: 0,
-  },
-  fabWrapper: {
-    position: 'absolute',
-    right: 22,
-    bottom: 95,
-    width: 56,
-    height: 56,
-    zIndex: 10,
-    elevation: 10,
   },
 });

@@ -175,6 +175,8 @@ The application follows a **4 Main Tabs + Action Modals** pattern:
 
 ## 6. Design System & Nothing OS Aesthetic
 
+> 📖 **Full Specification**: See the dedicated [**Cashya Design System Guide**](./DESIGN_SYSTEM.md) for complete token tables, component blueprints, and haptic guidelines.
+
 All design tokens are centralized in `theme.ts`.
 
 ### 🎨 Color Palette

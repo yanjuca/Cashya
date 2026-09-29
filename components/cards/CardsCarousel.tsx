@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useRef } from 'react';
 import {
   Dimensions,
@@ -6,12 +5,9 @@ import {
   NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { CreditCard } from '../../contexts/CardsContext';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import CreditCardItem from './CreditCardItem';
 
 interface CardsCarouselProps {
@@ -29,30 +25,11 @@ export default function CardsCarousel({
   cards,
   activeIndex,
   onIndexChange,
-  onAddCard,
 }: CardsCarouselProps) {
   const scrollViewRef = useRef<ScrollView>(null);
 
-  if (cards.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <TouchableOpacity
-            style={styles.addCardPlaceholder}
-            onPress={onAddCard}
-            activeOpacity={0.7}
-          >
-            <View style={styles.addCardIconCircle}>
-              <Ionicons name="add" size={22} color="#ffffff" />
-            </View>
-            <View style={styles.addCardTextContainer}>
-              <Text style={styles.addCardTitle}>Add your card</Text>
-              <Text style={styles.addCardSubtitle}>Track limits, spend and accounts</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+  if (!cards || cards.length === 0) {
+    return null;
   }
 
   const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -139,42 +116,5 @@ const styles = StyleSheet.create({
   dotInactive: {
     width: 4,
     backgroundColor: '#303038',
-  },
-  emptyContainer: {
-    paddingHorizontal: 22,
-  },
-  addCardPlaceholder: {
-    height: 68,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: '#141418',
-    borderWidth: 1,
-    borderColor: '#262630',
-    borderStyle: 'dashed',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 14,
-  },
-  addCardIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#20202a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addCardTextContainer: {
-    flex: 1,
-  },
-  addCardTitle: {
-    fontFamily: FONTS.medium,
-    color: '#ffffff',
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  addCardSubtitle: {
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    fontSize: 11,
   },
 });

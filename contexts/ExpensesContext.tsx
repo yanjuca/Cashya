@@ -9,6 +9,7 @@ interface ExpensesContextData {
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   editExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   removeExpense: (id: string) => Promise<void>;
+  removeExpenses: (ids: string[]) => Promise<void>;
   togglePaid: (id: string) => Promise<void>;
   reloadExpenses: () => Promise<void>;
   resetExpenses: (newExpenses: Expense[]) => Promise<void>;
@@ -70,6 +71,12 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
     await saveAndSetExpenses(newExpenses);
   };
 
+  const removeExpenses = async (ids: string[]) => {
+    const idSet = new Set(ids);
+    const newExpenses = expenses.filter((e) => !idSet.has(e.id));
+    await saveAndSetExpenses(newExpenses);
+  };
+
   const togglePaid = async (id: string) => {
     const newExpenses = expenses.map((e) =>
       e.id === id ? { ...e, paid: !e.paid } : e
@@ -92,6 +99,7 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
         addExpense,
         editExpense,
         removeExpense,
+        removeExpenses,
         togglePaid,
         reloadExpenses,
         resetExpenses,

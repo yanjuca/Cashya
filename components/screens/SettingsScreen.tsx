@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -21,7 +24,11 @@ import { formatCurrency } from '../../utils/formatters';
 
 import AddCardModal from '../cards/AddCardModal';
 
-export default function SettingsScreen() {
+export interface SettingsScreenProps {
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
+}
+
+export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
   const { showAlert } = useAlert();
   const { cards, removeCard, reloadCards, resetCards } = useCards();
   const { expenses, reloadExpenses, resetExpenses } = useExpenses();
@@ -130,6 +137,8 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
 
         {/* SECTION 1: CARDS */}
@@ -228,9 +237,9 @@ export default function SettingsScreen() {
         {/* SECTION 4: ABOUT */}
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>cashya</Text>
-          <Text style={styles.aboutVersion}>Version 1.0.0 (Offline-First Edition)</Text>
+          <Text style={styles.aboutVersion}>Version 0.6</Text>
           <Text style={styles.aboutTagline}>
-            Minimalism & Nothing OS aesthetic for noise-free financial tracking.
+            offline
           </Text>
         </View>
       </ScrollView>
@@ -242,8 +251,20 @@ export default function SettingsScreen() {
       />
 
       {/* MODAL: RESTORE BACKUP */}
-      <Modal visible={showRestoreModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={showRestoreModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowRestoreModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalBackdrop}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowRestoreModal(false)}
+          />
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Restore Backup</Text>
@@ -274,7 +295,7 @@ export default function SettingsScreen() {
               <Text style={styles.modalSaveButtonText}>Validate & Restore</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
