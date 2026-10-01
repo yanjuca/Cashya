@@ -43,7 +43,7 @@ export default function CardsCarousel({
             activeOpacity={0.7}
           >
             <View style={styles.addCardIconCircle}>
-              <Ionicons name="add" size={22} color="#ffffff" />
+              <Ionicons name="add" size={22} color="#04488c" />
             </View>
             <View style={styles.addCardTextContainer}>
               <Text style={styles.addCardTitle}>Add your card</Text>
