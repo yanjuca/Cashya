@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -11,13 +11,13 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CardsCarousel from '../cards/CardsCarousel';
-import MetricCard from '../dashboard/MetricCard';
-import EditExpenseScreen from './EditExpenseScreen';
 import { useCards } from '../../contexts/CardsContext';
 import { Expense, useExpenses } from '../../contexts/ExpensesContext';
 import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
+import CardsCarousel from '../cards/CardsCarousel';
+import MetricCard from '../dashboard/MetricCard';
+import EditExpenseScreen from './EditExpenseScreen';
 
 import AddCardModal from '../cards/AddCardModal';
 
@@ -85,66 +85,74 @@ export default function WalletHomeScreen() {
           },
         ]}
       >
-        {/* Cards Carousel */}
-        <View style={styles.carouselWrapper}>
-          <CardsCarousel
-            cards={cards}
-            activeIndex={activeCardIndex}
-            onIndexChange={setActiveCardIndex}
-            onAddCard={() => setShowAddCard(true)}
-          />
+        {/* Title Section */}
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>cash</Text>
+          <Text style={styles.subtitle}>Your cards and accounts in one place.</Text>
         </View>
 
-        {/* Metrics Section */}
-        <View style={styles.metricsContainer}>
-          {/* Available limit */}
-          <MetricCard
-            label="Available limit"
-            value={hasCard ? formatCurrency(limiteDisponivel) : '—'}
-            subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'No card selected'}
-            badge={hasCard ? `${percentage}%` : undefined}
-          />
+        {/* Scrollable content for the top elements and transactions */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 1. BOTÃO DO MÊS + MÉTRICAS E TOTAIS NO TOPO */}
+          <View style={styles.metricsContainer}>
+            <TouchableOpacity style={styles.monthButton}>
+              <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.monthButtonText}>Current Month</Text>
+              <Ionicons name="chevron-down" size={14} color={COLORS.textSecondary} />
+            </TouchableOpacity>
 
-          {/* Total spent */}
-          <MetricCard
-            label="Total spent"
-            value={formatCurrency(totalGasto)}
-            subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'This month'}
-            badge={hasCard ? `${percentage}%` : undefined}
-          />
-
-          {/* Split Row: Pending & Paid */}
-          <View style={styles.splitRow}>
             <MetricCard
-              label="Pending"
-              value={formatCurrency(pendente)}
-              variant="compact"
+              label="Available limit"
+              value={hasCard ? formatCurrency(limiteDisponivel) : '—'}
+              subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'No card selected'}
+              badge={hasCard ? `${percentage}%` : undefined}
             />
-            <View style={{ width: 12 }} />
+
             <MetricCard
-              label="Paid"
-              value={formatCurrency(pago)}
-              variant="compact"
+              label="Total spent"
+              value={formatCurrency(totalGasto)}
+              subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'This month'}
+              badge={hasCard ? `${percentage}%` : undefined}
+            />
+
+            <View style={styles.splitRow}>
+              <MetricCard
+                label="Pending"
+                value={formatCurrency(pendente)}
+                variant="compact"
+              />
+              <View style={{ width: 12 }} />
+              <MetricCard
+                label="Paid"
+                value={formatCurrency(pago)}
+                variant="compact"
+              />
+            </View>
+          </View>
+
+          {/* 2. CARDS CAROUSEL */}
+          <View style={styles.carouselWrapper}>
+            <CardsCarousel
+              cards={cards}
+              activeIndex={activeCardIndex}
+              onIndexChange={setActiveCardIndex}
+              onAddCard={() => setShowAddCard(true)}
             />
           </View>
-        </View>
 
-        {/* Transactions Section */}
-        <View style={styles.transactionsSection}>
-          <View style={styles.transactionsHeader}>
-            <Text style={styles.transactionsTitle}>TRANSACTIONS</Text>
-            <Text style={styles.transactionsCount}>
-              {sortedExpenses.length} {sortedExpenses.length === 1 ? 'item' : 'items'}
-            </Text>
-          </View>
+          {/* 3. TRANSACTIONS SECTION */}
+          <View style={styles.transactionsSection}>
+            <View style={styles.transactionsHeader}>
+              <Text style={styles.transactionsTitle}>TRANSACTIONS</Text>
+              <Text style={styles.transactionsCount}>
+                {sortedExpenses.length} {sortedExpenses.length === 1 ? 'item' : 'items'}
+              </Text>
+            </View>
 
-          <View style={styles.transactionsListContainer}>
-            <ScrollView
-              style={styles.transactionsScrollView}
-              contentContainerStyle={styles.transactionsScrollContent}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-            >
+            <View style={styles.transactionsListContainer}>
               {sortedExpenses.length === 0 ? null : (
                 sortedExpenses.map((item) => (
                   <TouchableOpacity
@@ -193,24 +201,9 @@ export default function WalletHomeScreen() {
                   </TouchableOpacity>
                 ))
               )}
-            </ScrollView>
-
-            {/* Gradient Overlay Fade out on bottom */}
-            {sortedExpenses.length > 1 && (
-              <LinearGradient
-                colors={[
-                  'transparent',
-                  'rgba(0, 0, 0, 0.4)',
-                  'rgba(0, 0, 0, 0.85)',
-                  '#000000',
-                ]}
-                locations={[0, 0.35, 0.7, 1]}
-                pointerEvents="none"
-                style={styles.gradientOverlay}
-              />
-            )}
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </View>
 
       {/* Add Card Modal */}
@@ -244,9 +237,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
   },
+  scrollContent: {
+    paddingBottom: 110,
+  },
   titleSection: {
     paddingHorizontal: 22,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: {
     fontFamily: FONTS.ndot || FONTS.system,
@@ -254,18 +250,41 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 1.5,
   },
+  subtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  monthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#16161a',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: BORDER_RADIUS.md,
+    alignSelf: 'flex-start',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#24242a',
+  },
+  monthButtonText: {
+    fontFamily: FONTS.system,
+    fontSize: 13,
+    color: '#ffffff',
+    marginHorizontal: 8,
+  },
   carouselWrapper: {
     marginBottom: 16,
   },
   metricsContainer: {
     paddingHorizontal: 22,
+    marginBottom: 16,
   },
   splitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   transactionsSection: {
-    flex: 1,
     marginTop: 18,
     paddingHorizontal: 22,
   },
@@ -287,23 +306,7 @@ const styles = StyleSheet.create({
     color: '#666672',
   },
   transactionsListContainer: {
-    flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  transactionsScrollView: {
-    flex: 1,
-  },
-  transactionsScrollContent: {
-    paddingBottom: 110,
     gap: 8,
-  },
-  gradientOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 300,
   },
   expenseItem: {
     backgroundColor: '#16161a',
