@@ -1,15 +1,3 @@
-"""Defences against API probing, replay and unofficial clients.
-
-What lives here:
-
-* ``SlidingWindowLimiter`` – in-memory per-key rate limiting (auth endpoints and a global cap).
-* ``RequestSignatureVerifier`` – HMAC-SHA256 request signing shared with the mobile app, with timestamp window
-  and nonce cache so captured requests cannot be replayed and hand-crafted requests are rejected.
-* ``client_version_allowed`` – refuses clients older than ``MIN_CLIENT_VERSION`` (forces upgrades of leaked builds).
-* ``client_ip`` / ``apply_security_headers`` – consistent client identification and response hardening.
-
-Everything is opt-in through settings so local development keeps working with plain curl.
-"""
 
 import hashlib
 import hmac
