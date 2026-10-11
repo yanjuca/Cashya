@@ -77,7 +77,7 @@ export default function CardsCarousel({
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           {
-            useNativeDriver: true,
+            useNativeDriver: false,
             listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
               currentOffsetRef.current = e.nativeEvent.contentOffset.x;
             },

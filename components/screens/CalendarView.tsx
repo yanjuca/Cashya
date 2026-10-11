@@ -1,12 +1,9 @@
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Dimensions,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -43,8 +40,6 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const isUserScrollingRef = useRef(false);
 
   // Calculate row count for the current month
   const currentMonthRows = useMemo(() => {
@@ -55,7 +50,6 @@ export default function CalendarView({
 
   // Height for a given number of rows:
   // Card padding (12 top + 10 bottom = 22) + weekdays row (~25) + rows * (CELL_SIZE + 4 + 4 margin)
-  // Let's accurately calculate row height: (CELL_SIZE + 4 + 4) = CELL_SIZE + 8
   const CARD_BASE_HEIGHT = 48; // weekdays + border + padding
   const ROW_HEIGHT = CELL_SIZE + 8;
   const targetHeight = CARD_BASE_HEIGHT + currentMonthRows * ROW_HEIGHT;
@@ -69,62 +63,6 @@ export default function CalendarView({
       useNativeDriver: false,
     }).start();
   }, [targetHeight]);
-
-  // Month offsets: -1 (prev), 0 (current), 1 (next)
-  const monthsData = useMemo(() => {
-    return [-1, 0, 1].map((offset) => {
-      const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1);
-      return {
-        offset,
-        date: d,
-        year: d.getFullYear(),
-        month: d.getMonth(),
-        key: `${d.getFullYear()}-${d.getMonth()}`,
-      };
-    });
-  }, [currentMonth]);
-
-  // Always keep scroll centered on index 1 (current month)
-  useEffect(() => {
-    scrollViewRef.current?.scrollTo({
-      x: CALENDAR_WIDTH,
-      animated: false,
-    });
-  }, [currentMonth]);
-
-  const handleScrollBeginDrag = () => {
-    isUserScrollingRef.current = true;
-    onGestureActive?.(true);
-  };
-
-  const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    onGestureActive?.(false);
-    isUserScrollingRef.current = false;
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const pageIndex = Math.round(offsetX / CALENDAR_WIDTH);
-
-    if (pageIndex === 0) {
-      // Swiped right to previous month
-      const prev = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-      onChangeMonth(prev);
-    } else if (pageIndex === 2) {
-      // Swiped left to next month
-      const next = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-      onChangeMonth(next);
-    } else {
-      // Snap reset to center if settled at 1
-      scrollViewRef.current?.scrollTo({ x: CALENDAR_WIDTH, animated: false });
-    }
-  };
-
-  const handleScrollEndDrag = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // In case there is no momentum, ensure gesture is released
-    const velocityX = e.nativeEvent.velocity?.x ?? 0;
-    if (Math.abs(velocityX) < 0.05) {
-      onGestureActive?.(false);
-      isUserScrollingRef.current = false;
-    }
-  };
 
   const expensesByDay = useMemo(() => {
     const map = new Map<string, { total: number; hasPending: boolean; hasPaid: boolean; count: number }>();
@@ -148,41 +86,42 @@ export default function CalendarView({
   const selectedKey = selectedDate ? toDateKey(selectedDate) : null;
   const todayKey = toDateKey(new Date());
 
-  const renderMonthGrid = (item: (typeof monthsData)[0]) => {
-    const { year, month, key } = item;
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const days: {
-      dayNumber: number;
-      isCurrentMonth: boolean;
-      date: Date;
-      key: string;
-    }[] = [];
+  const days: {
+    dayNumber: number;
+    isCurrentMonth: boolean;
+    date: Date;
+    key: string;
+  }[] = [];
 
-    // Empty padding days before day 1
-    for (let i = 0; i < firstDayIndex; i++) {
-      days.push({
-        dayNumber: 0,
-        isCurrentMonth: false,
-        date: new Date(year, month, 0),
-        key: `prev-${key}-${i}`,
-      });
-    }
+  // Empty padding days before day 1
+  for (let i = 0; i < firstDayIndex; i++) {
+    days.push({
+      dayNumber: 0,
+      isCurrentMonth: false,
+      date: new Date(year, month, 0),
+      key: `prev-${year}-${month}-${i}`,
+    });
+  }
 
-    // Days in this month
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(year, month, d);
-      days.push({
-        dayNumber: d,
-        isCurrentMonth: true,
-        date,
-        key: toDateKey(date),
-      });
-    }
+  // Days in this month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    days.push({
+      dayNumber: d,
+      isCurrentMonth: true,
+      date,
+      key: toDateKey(date),
+    });
+  }
 
-    return (
-      <View key={key} style={styles.monthCard}>
+  return (
+    <Animated.View style={[styles.outerContainer, { height: animatedHeight }]}>
+      <View style={styles.monthCard}>
         {/* Weekday Labels Header */}
         <View style={styles.weekdaysRow}>
           {WEEKDAYS.map((w, index) => (
@@ -245,27 +184,6 @@ export default function CalendarView({
           })}
         </View>
       </View>
-    );
-  };
-
-  return (
-    <Animated.View style={[styles.outerContainer, { height: animatedHeight }]}>
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        nestedScrollEnabled
-        decelerationRate="fast"
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        onScrollEndDrag={handleScrollEndDrag}
-        contentOffset={{ x: CALENDAR_WIDTH, y: 0 }}
-        style={styles.horizontalScroll}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {monthsData.map(renderMonthGrid)}
-      </ScrollView>
     </Animated.View>
   );
 }
@@ -277,12 +195,6 @@ function createStyles(colors: ThemeColors) {
       marginBottom: 10,
       width: CALENDAR_WIDTH,
       overflow: 'hidden',
-    },
-    horizontalScroll: {
-      width: CALENDAR_WIDTH,
-    },
-    scrollContent: {
-      alignItems: 'flex-start',
     },
     monthCard: {
       width: CALENDAR_WIDTH,
