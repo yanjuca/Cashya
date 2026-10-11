@@ -21,6 +21,10 @@ interface AddExpenseScreenProps {
   onClose: () => void;
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+export const MIN_ALLOWED_DATE = new Date(CURRENT_YEAR - 5, 0, 1); // 5 years in the past
+export const MAX_ALLOWED_DATE = new Date(CURRENT_YEAR + 5, 11, 31, 23, 59, 59); // 5 years in the future
+
 export default function AddExpenseScreen({ visible = true, onClose }: AddExpenseScreenProps) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -80,6 +84,15 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
       showAlert({
         title: 'Warning',
         message: 'Please enter who should pay / responsible.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    if (date < MIN_ALLOWED_DATE || date > MAX_ALLOWED_DATE) {
+      showAlert({
+        title: 'Invalid Date',
+        message: `Please select a date between ${MIN_ALLOWED_DATE.getFullYear()} and ${MAX_ALLOWED_DATE.getFullYear()}.`,
         type: 'warning',
       });
       return;
@@ -227,6 +240,8 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onDateChange}
           themeVariant={isDark ? 'dark' : 'light'}
+          minimumDate={MIN_ALLOWED_DATE}
+          maximumDate={MAX_ALLOWED_DATE}
         />
       )}
 

@@ -63,13 +63,24 @@ export default function TransactionsScreen({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
 
+  const minAllowedDate = useMemo(() => {
+    const y = new Date().getFullYear();
+    return new Date(y - 5, 0, 1);
+  }, []);
+
+  const maxAllowedDate = useMemo(() => {
+    const y = new Date().getFullYear();
+    return new Date(y + 5, 11, 31, 23, 59, 59);
+  }, []);
+
   const onMonthDateChange = (event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS === 'android') {
       setShowMonthPicker(false);
     }
     if (event.type === 'set' && selected) {
       triggerButtonHaptic();
-      setCurrentMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
+      const clampedYear = Math.max(minAllowedDate.getFullYear(), Math.min(selected.getFullYear(), maxAllowedDate.getFullYear()));
+      setCurrentMonth(new Date(clampedYear, selected.getMonth(), 1));
       setSelectedDate(null);
       if (Platform.OS === 'ios') {
         setShowMonthPicker(false);
@@ -681,6 +692,8 @@ export default function TransactionsScreen({
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onMonthDateChange}
+                minimumDate={minAllowedDate}
+                maximumDate={maxAllowedDate}
               />
             )}
 
