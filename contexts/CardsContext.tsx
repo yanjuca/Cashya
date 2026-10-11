@@ -13,7 +13,7 @@ export const DEFAULT_CARDS: CreditCard[] = [
     lastDigits: '1234',
     expiryDate: '12/28',
     limit: 3000,
-    colorAccent: '#ff453a',
+    colorAccent: '#9B1D20',
   },
   {
     id: 'card-2',

@@ -1,17 +1,18 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useRef } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { CreditCard } from '../../contexts/CardsContext';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { ThemeColors } from '../../theme';
 import CreditCardItem from './CreditCardItem';
 
 interface CardsCarouselProps {
@@ -29,44 +30,43 @@ export default function CardsCarousel({
   cards,
   activeIndex,
   onIndexChange,
-  onAddCard,
 }: CardsCarouselProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const scrollViewRef = useRef<ScrollView>(null);
+  const scrollX = useRef(new Animated.Value(activeIndex * SNAP_INTERVAL)).current;
+  const currentOffsetRef = useRef(activeIndex * SNAP_INTERVAL);
 
-  if (cards.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <TouchableOpacity
-            style={styles.addCardPlaceholder}
-            onPress={onAddCard}
-            activeOpacity={0.7}
-          >
-            <View style={styles.addCardIconCircle}>
-              <Ionicons name="add" size={22} color="#ffffff" />
-            </View>
-            <View style={styles.addCardTextContainer}>
-              <Text style={styles.addCardTitle}>Add your card</Text>
-              <Text style={styles.addCardSubtitle}>Track limits, spend and accounts</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+  if (!cards || cards.length === 0) {
+    return null;
   }
+
+  // Smoothly scroll to activeIndex if changed programmatically
+  useEffect(() => {
+    const targetX = activeIndex * SNAP_INTERVAL;
+    if (Math.abs(currentOffsetRef.current - targetX) > 10) {
+      scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  }, [activeIndex]);
 
   const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
+    currentOffsetRef.current = offsetX;
     const index = Math.round(offsetX / SNAP_INTERVAL);
     const clampedIndex = Math.max(0, Math.min(index, cards.length - 1));
     if (clampedIndex !== activeIndex) {
+      if (Platform.OS !== 'web') {
+        try {
+          Haptics.selectionAsync();
+        } catch {}
+      }
       onIndexChange(clampedIndex);
     }
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <Animated.ScrollView
         ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -74,33 +74,87 @@ export default function CardsCarousel({
         snapToInterval={SNAP_INTERVAL}
         snapToAlignment="start"
         contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          {
+            useNativeDriver: false,
+            listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+              currentOffsetRef.current = e.nativeEvent.contentOffset.x;
+            },
+          }
+        )}
+        scrollEventThrottle={16}
         onMomentumScrollEnd={handleMomentumScrollEnd}
       >
-        {cards.map((card, index) => (
-          <View
-            key={card.id}
-            style={[
-              styles.cardWrapper,
-              { width: CARD_WIDTH },
-              index < cards.length - 1 && { marginRight: 12 },
-            ]}
-          >
-            <CreditCardItem card={card} isActive={index === activeIndex} />
-          </View>
-        ))}
-      </ScrollView>
+        {cards.map((card, index) => {
+          const inputRange = [
+            (index - 1) * SNAP_INTERVAL,
+            index * SNAP_INTERVAL,
+            (index + 1) * SNAP_INTERVAL,
+          ];
 
-      {/* Pagination Dots */}
+          const scale = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.94, 1, 0.94],
+            extrapolate: 'clamp',
+          });
+
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.65, 1, 0.65],
+            extrapolate: 'clamp',
+          });
+
+          return (
+            <Animated.View
+              key={card.id}
+              style={[
+                styles.cardWrapper,
+                { width: CARD_WIDTH },
+                index < cards.length - 1 && { marginRight: 12 },
+                {
+                  transform: [{ scale }],
+                  opacity,
+                },
+              ]}
+            >
+              <CreditCardItem card={card} isActive={index === activeIndex} />
+            </Animated.View>
+          );
+        })}
+      </Animated.ScrollView>
+
+      {/* Fluid Dynamic Pagination Dots */}
       {cards.length > 1 && (
         <View style={styles.dotsContainer}>
           {cards.map((_, i) => {
-            const isActive = i === activeIndex;
+            const dotInputRange = [
+              (i - 1) * SNAP_INTERVAL,
+              i * SNAP_INTERVAL,
+              (i + 1) * SNAP_INTERVAL,
+            ];
+
+            const dotWidth = scrollX.interpolate({
+              inputRange: dotInputRange,
+              outputRange: [4, 14, 4],
+              extrapolate: 'clamp',
+            });
+
+            const dotOpacity = scrollX.interpolate({
+              inputRange: dotInputRange,
+              outputRange: [0.3, 1, 0.3],
+              extrapolate: 'clamp',
+            });
+
             return (
-              <View
+              <Animated.View
                 key={i}
                 style={[
                   styles.dot,
-                  isActive ? styles.dotActive : styles.dotInactive,
+                  {
+                    width: dotWidth,
+                    opacity: dotOpacity,
+                  },
                 ]}
               />
             );
@@ -111,70 +165,28 @@ export default function CardsCarousel({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 2,
-  },
-  scrollContent: {
-    paddingHorizontal: 22,
-  },
-  cardWrapper: {
-    // Dynamic width
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  dot: {
-    height: 4,
-    borderRadius: 2,
-  },
-  dotActive: {
-    width: 12,
-    backgroundColor: '#ffffff',
-  },
-  dotInactive: {
-    width: 4,
-    backgroundColor: '#303038',
-  },
-  emptyContainer: {
-    paddingHorizontal: 22,
-  },
-  addCardPlaceholder: {
-    height: 68,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: '#141418',
-    borderWidth: 1,
-    borderColor: '#262630',
-    borderStyle: 'dashed',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 14,
-  },
-  addCardIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#20202a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addCardTextContainer: {
-    flex: 1,
-  },
-  addCardTitle: {
-    fontFamily: FONTS.medium,
-    color: '#ffffff',
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  addCardSubtitle: {
-    fontFamily: FONTS.regular,
-    color: COLORS.textSecondary,
-    fontSize: 11,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      marginVertical: 2,
+    },
+    scrollContent: {
+      paddingHorizontal: 22,
+    },
+    cardWrapper: {
+      // Dynamic width and transforms
+    },
+    dotsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
+    dot: {
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.text,
+    },
+  });
+}
