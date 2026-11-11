@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -15,6 +15,7 @@ import { useExpenses } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import BottomSheetModal from '../ui/BottomSheetModal';
+import RecurringToggle from '../ui/RecurringToggle';
 
 interface AddExpenseScreenProps {
   visible?: boolean;
@@ -22,8 +23,8 @@ interface AddExpenseScreenProps {
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
-export const MIN_ALLOWED_DATE = new Date(CURRENT_YEAR - 5, 0, 1); // 5 years in the past
-export const MAX_ALLOWED_DATE = new Date(CURRENT_YEAR + 5, 11, 31, 23, 59, 59); // 5 years in the future
+export const MIN_ALLOWED_DATE = new Date(CURRENT_YEAR - 5, 0, 1);
+export const MAX_ALLOWED_DATE = new Date(CURRENT_YEAR + 5, 11, 31, 23, 59, 59);
 
 export default function AddExpenseScreen({ visible = true, onClose }: AddExpenseScreenProps) {
   const { colors, isDark } = useTheme();
@@ -40,6 +41,14 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [recurring, setRecurring] = useState(false);
+  const [recurringMonths, setRecurringMonths] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedCardId(activeCard?.id);
+    }
+  }, [visible, activeCard?.id]);
 
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -60,6 +69,8 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
     setDate(new Date());
     setTagInput('');
     setTags([]);
+    setRecurring(false);
+    setRecurringMonths('');
   };
 
   const handleSave = async () => {
@@ -106,6 +117,8 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         date: date,
         tags: tags,
         paid: false,
+        recurring: recurring,
+        recurringMonths: recurring && recurringMonths ? parseInt(recurringMonths, 10) : undefined,
         cardId: selectedCardId,
         source: 'manual',
       });
@@ -139,7 +152,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
       onClose={onClose}
       title="New Expense"
     >
-      {/* Description Input */}
       <Text style={styles.inputLabel}>Description</Text>
       <TextInput
         style={styles.modalInput}
@@ -150,7 +162,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         autoCapitalize="sentences"
       />
 
-      {/* Amount Input */}
       <Text style={styles.inputLabel}>Amount ($)</Text>
       <TextInput
         style={[styles.modalInput, styles.amountInput]}
@@ -161,7 +172,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         keyboardType="decimal-pad"
       />
 
-      {/* Person Input */}
       <Text style={styles.inputLabel}>Responsible / Who Pays</Text>
       <TextInput
         style={styles.modalInput}
@@ -172,7 +182,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         autoCapitalize="words"
       />
 
-      {/* Card / Account Selector */}
       {cards.length > 0 && (
         <>
           <Text style={styles.inputLabel}>Payment Method</Text>
@@ -217,7 +226,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         </>
       )}
 
-      {/* Date Picker Button */}
       <Text style={styles.inputLabel}>Date</Text>
       <TouchableOpacity
         style={styles.modalInputRow}
@@ -245,7 +253,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         />
       )}
 
-      {/* Tags Input */}
       <Text style={styles.inputLabel}>Tags</Text>
       <View style={styles.tagInputWrapper}>
         <TextInput
@@ -262,7 +269,6 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         </TouchableOpacity>
       </View>
 
-      {/* Tag Chips Display */}
       {tags.length > 0 && (
         <View style={styles.tagsDisplayRow}>
           {tags.map((tag) => (
@@ -278,7 +284,13 @@ export default function AddExpenseScreen({ visible = true, onClose }: AddExpense
         </View>
       )}
 
-      {/* Submit Button */}
+      <RecurringToggle
+        value={recurring}
+        onChange={setRecurring}
+        months={recurringMonths}
+        onMonthsChange={setRecurringMonths}
+      />
+
       <TouchableOpacity
         style={styles.modalSaveButton}
         onPress={handleSave}

@@ -74,6 +74,8 @@ export const BackupService = {
         paid: Boolean(e.paid),
         source: e.source || 'import',
         cardId: e.cardId,
+        recurring: Boolean(e.recurring),
+        recurringMonths: Number(e.recurringMonths) > 0 ? Number(e.recurringMonths) : undefined,
       }));
 
       // Sanitize cards (if any)

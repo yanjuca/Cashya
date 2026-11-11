@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -34,7 +34,6 @@ interface InferredInsight {
 function inferCategoryAndInsight(description: string, tags: string[]): InferredInsight {
   const text = `${description} ${tags.join(' ')}`.toLowerCase();
 
-  // Supermarket & Groceries
   if (
     /mercado|supermercado|feir|hortifruti|a[çc]ougue|padaria|carrefour|p[ãa]o de a[çc][uú]car|extra|dia|assa[íi]|atacad|mercearia|grocery|market|bakery|butcher/.test(
       text
@@ -48,7 +47,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Dining & Delivery
   if (
     /ifood|rappi|restaurante|lanche|burger|hamburg|pizza|caf[ée]|coffee|bar|delivery|almo[çc]o|jantar|mcdonald|bk|burger king|outback|starbucks|churrasc|sushi|comida|food|dining/.test(
       text
@@ -62,7 +60,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Transport & Mobility
   if (
     /uber|99|t[áa]xi|taxi|posto|gasolina|combust[íi]vel|etanol|diesel|ped[áa]gio|estacionamento|sem parar|veloe|bilhete|metr[ôo]|onibus|[ôo]nibus|passagem|voo|a[ée]reo|fuel|gas|toll|transit|flight/.test(
       text
@@ -76,7 +73,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Streaming & Digital Subscriptions
   if (
     /netflix|spotify|prime|disney|hbo|max|apple|youtube|deezer|globoplay|paramount|steam|playstation|psn|xbox|assinatura|subscription/.test(
       text
@@ -90,7 +86,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Shopping & Retail
   if (
     /amazon|mercado livre|shopee|aliexpress|shein|magalu|magazine|loja|shopping|roupa|vestu[áa]rio|zara|renner|riachuelo|c&a|compra|retail|clothes|store/.test(
       text
@@ -104,7 +99,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Health & Wellbeing
   if (
     /farm[áa]cia|drogaria|drogasil|raia|rem[ée]dio|medicamento|m[ée]dico|consulta|hospital|laborat[óo]rio|exame|sa[úu]de|dentista|odonto|academia|gym|smart fit|health|fitness|wellness|doctor|pharmacy/.test(
       text
@@ -118,7 +112,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Housing & Utilities
   if (
     /luz|água|agua|energia|enel|sabesp|cpfl|internet|claro|vivo|tim|g[áa]s|aluguel|condom[íi]nio|iptu|boleto|fatura|reparo|manuten[çc][ãa]o|utility|rent|bills|maintenance/.test(
       text
@@ -132,7 +125,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Banking & Transfers
   if (/pix|ted|doc|transfer[êe]ncia|pagamento|dep[óo]sito|saque|iof|tarifa|transfer|wire|deposit|bank/.test(text)) {
     return {
       category: 'Transfers & Finance',
@@ -142,7 +134,6 @@ function inferCategoryAndInsight(description: string, tags: string[]): InferredI
     };
   }
 
-  // Fallback to tags or generic expense
   if (tags.length > 0) {
     return {
       category: `#${tags[0].toUpperCase()}`,
@@ -187,11 +178,9 @@ export default function TransactionDetailsModal({
     return inferCategoryAndInsight(activeExpense.description, activeExpense.tags || []);
   }, [activeExpense]);
 
-  // Statistics for this specific expense
   const stats = useMemo(() => {
     if (!activeExpense) return null;
 
-    // Monthly total
     const monthExpenses = expenses.filter(
       (e) =>
         e.date.getMonth() === activeExpense.date.getMonth() &&
@@ -201,13 +190,11 @@ export default function TransactionDetailsModal({
     const monthPercentage =
       monthTotal > 0 ? Math.min(100, (activeExpense.amount / monthTotal) * 100) : 0;
 
-    // Card limit share
     const cardLimitShare =
       linkedCard && linkedCard.limit > 0
         ? Math.min(100, (activeExpense.amount / linkedCard.limit) * 100)
         : null;
 
-    // Vendor occurrence count
     const vendorOccurrences = expenses.filter(
       (e) => e.description.toLowerCase().trim() === activeExpense.description.toLowerCase().trim()
     ).length;
@@ -224,9 +211,23 @@ export default function TransactionDetailsModal({
   const haloScaleAnim = useRef(new Animated.Value(1)).current;
   const haloOpacityAnim = useRef(new Animated.Value(0)).current;
   const pillScaleAnim = useRef(new Animated.Value(1)).current;
+  const isBusyRef = useRef(false);
+
+  useEffect(() => {
+    dotScaleAnim.stopAnimation();
+    haloScaleAnim.stopAnimation();
+    haloOpacityAnim.stopAnimation();
+    pillScaleAnim.stopAnimation();
+    dotScaleAnim.setValue(1);
+    haloScaleAnim.setValue(1);
+    haloOpacityAnim.setValue(0);
+    pillScaleAnim.setValue(1);
+    isBusyRef.current = false;
+  }, [visible, activeExpense?.id, dotScaleAnim, haloScaleAnim, haloOpacityAnim, pillScaleAnim]);
 
   const handleTogglePaidStatus = async () => {
-    if (!activeExpense) return;
+    if (!activeExpense || isBusyRef.current) return;
+    isBusyRef.current = true;
     const willBePaid = !activeExpense.paid;
     if (Platform.OS !== 'web') {
       try {
@@ -236,16 +237,14 @@ export default function TransactionDetailsModal({
           await Haptics.selectionAsync();
         }
       } catch {
-        // Silently ignore
       }
     }
 
-    // Trigger snappy spring pop & expanding halo wave
     dotScaleAnim.setValue(1);
     haloScaleAnim.setValue(1);
     haloOpacityAnim.setValue(0.85);
 
-    Animated.parallel([
+    const popAnimation = Animated.parallel([
       Animated.sequence([
         Animated.timing(pillScaleAnim, {
           toValue: 0.94,
@@ -286,11 +285,17 @@ export default function TransactionDetailsModal({
         easing: Easing.bezier(0.16, 1, 0.3, 1),
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+
+    const animationDone = new Promise<void>((resolve) => {
+      popAnimation.start(() => resolve());
+    });
+    const maxWait = new Promise<void>((resolve) => setTimeout(resolve, 450));
 
     try {
-      await togglePaid(activeExpense.id);
+      await Promise.all([togglePaid(activeExpense.id), Promise.race([animationDone, maxWait])]);
     } finally {
+      isBusyRef.current = false;
       onClose();
     }
   };
@@ -305,6 +310,8 @@ export default function TransactionDetailsModal({
       </BottomSheetModal>
     );
   }
+
+  const isRecurring = !!activeExpense.recurring || !!activeExpense.recurringSourceId;
 
   const formattedDate = activeExpense.date.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -352,12 +359,10 @@ export default function TransactionDetailsModal({
         </View>
       }
     >
-            {/* Amount & Status Section */}
             <View style={styles.heroSection}>
               <Text style={styles.heroAmount}>{formatCurrency(activeExpense.amount)}</Text>
               <Text style={styles.heroDescription}>{activeExpense.description}</Text>
 
-              {/* Status and Date Pills */}
               <View style={styles.heroPillRow}>
                 <Animated.View style={{ transform: [{ scale: pillScaleAnim }] }}>
                   <TouchableOpacity
@@ -402,10 +407,16 @@ export default function TransactionDetailsModal({
                   <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
                   <Text style={styles.datePillText}>{formattedShortDate}</Text>
                 </View>
+
+                {isRecurring && (
+                  <View style={styles.datePill}>
+                    <Ionicons name="repeat" size={12} color={colors.primary} />
+                    <Text style={styles.datePillText}>Monthly</Text>
+                  </View>
+                )}
               </View>
             </View>
 
-            {/* Further Insights Card (Nothing OS Aesthetic) */}
             {insight && (
               <View style={styles.insightCard}>
                 <View style={styles.insightHeaderRow}>
@@ -422,7 +433,6 @@ export default function TransactionDetailsModal({
 
                 <View style={styles.insightDivider} />
 
-                {/* Quantitative Context */}
                 <View style={styles.insightMetricsRow}>
                   {stats && (
                     <View style={styles.insightMetricItem}>
@@ -461,9 +471,7 @@ export default function TransactionDetailsModal({
               </View>
             )}
 
-            {/* Spec Sheet Properties (Nothing OS technical specification styling) */}
             <View style={styles.specsCard}>
-              {/* Responsible Person */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
                   <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
@@ -474,7 +482,6 @@ export default function TransactionDetailsModal({
 
               <View style={styles.specDivider} />
 
-              {/* Full Date */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
                   <Ionicons name="time-outline" size={15} color={colors.textSecondary} />
@@ -485,7 +492,26 @@ export default function TransactionDetailsModal({
 
               <View style={styles.specDivider} />
 
-              {/* Payment Method / Card */}
+              {isRecurring && (
+                <>
+                  <View style={styles.specRow}>
+                    <View style={styles.specLeft}>
+                      <Ionicons name="repeat" size={15} color={colors.textSecondary} />
+                      <Text style={styles.specLabel}>RECURRING</Text>
+                    </View>
+                    <Text style={styles.specValue}>
+                      {`Every month, day ${activeExpense.date.getDate()}${
+                        activeExpense.recurringMonths
+                          ? ` · ${activeExpense.recurringMonths} ${activeExpense.recurringMonths === 1 ? 'month' : 'months'}`
+                          : ''
+                      }`}
+                    </Text>
+                  </View>
+
+                  <View style={styles.specDivider} />
+                </>
+              )}
+
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
                   <Ionicons name="card-outline" size={15} color={colors.textSecondary} />
@@ -500,7 +526,6 @@ export default function TransactionDetailsModal({
 
               <View style={styles.specDivider} />
 
-              {/* Source */}
               <View style={styles.specRow}>
                 <View style={styles.specLeft}>
                   <Ionicons name="hardware-chip-outline" size={15} color={colors.textSecondary} />
@@ -514,7 +539,6 @@ export default function TransactionDetailsModal({
               </View>
             </View>
 
-            {/* Tags Row */}
             {activeExpense.tags && activeExpense.tags.length > 0 && (
               <View style={styles.tagsSection}>
                 <Text style={styles.tagsSectionTitle}>ATTACHED TAGS</Text>
@@ -528,7 +552,6 @@ export default function TransactionDetailsModal({
               </View>
             )}
 
-            {/* Quick Toggle Action Button */}
             <TouchableOpacity
               style={[
                 styles.actionBtn,
@@ -608,6 +631,7 @@ function createStyles(colors: ThemeColors) {
     },
     heroPillRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: 10,
       marginTop: 12,
