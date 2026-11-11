@@ -16,9 +16,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardsCarousel from '../cards/CardsCarousel';
 import MetricCard from '../dashboard/MetricCard';
+import AddCardModal from '../cards/AddCardModal';
 import EditExpenseScreen from './EditExpenseScreen';
 import TransactionDetailsModal from './TransactionDetailsModal';
-import { useCards } from '../../contexts/CardsContext';
+import { CreditCard, useCards } from '../../contexts/CardsContext';
 import { Expense, useExpenses } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
@@ -163,7 +164,6 @@ const TactileExpenseRow = React.memo(({
           delayLongPress={300}
         >
           <View style={styles.cardMainRow}>
-            {/* Animated Checkbox Container */}
             <Animated.View
               style={{
                 width: checkboxWidth,
@@ -223,7 +223,6 @@ const TactileExpenseRow = React.memo(({
               </Animated.View>
             </Animated.View>
 
-            {/* Card Main Content */}
             <View style={styles.cardContent}>
               <View style={styles.expenseHeaderRow}>
                 <Text style={styles.expenseDescription} numberOfLines={1}>
@@ -267,7 +266,6 @@ const TactileExpenseRow = React.memo(({
               )}
             </View>
 
-            {/* Animated Edit Pencil Container */}
             <Animated.View
               style={{
                 width: pencilWidth,
@@ -313,13 +311,14 @@ export default function WalletHomeScreen({
   const [localIsEditMode, setLocalIsEditMode] = useState(false);
   const [localSelectedExpenseIds, setLocalSelectedExpenseIds] = useState<Set<string>>(new Set());
   const [showEditExpense, setShowEditExpense] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const isEditMode = externalIsEditMode !== undefined ? externalIsEditMode : localIsEditMode;
   const selectedExpenseIds =
     externalSelectedExpenseIds !== undefined ? externalSelectedExpenseIds : localSelectedExpenseIds;
 
-  // Month expenses
   const currentMonthExpenses = useMemo(() => {
     const now = new Date();
     return expenses.filter(
@@ -329,14 +328,12 @@ export default function WalletHomeScreen({
     );
   }, [expenses]);
 
-  // Expenses for the active card (or all monthly expenses if no cards registered)
   const cardExpenses = useMemo(() => {
     if (!cards || cards.length === 0) return currentMonthExpenses;
     if (!activeCard) return [];
     return currentMonthExpenses.filter((e) => e.cardId === activeCard.id);
   }, [currentMonthExpenses, cards, activeCard]);
 
-  // Sort card expenses by date descending
   const sortedExpenses = useMemo(() => {
     return [...cardExpenses].sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [cardExpenses]);
@@ -416,9 +413,8 @@ export default function WalletHomeScreen({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <StatusBar barStyle={colors.statusBar} />
 
-      {/* Ambient background glow */}
       <LinearGradient
         colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd, colors.background]}
         locations={[0, 0.45, 1]}
@@ -440,20 +436,17 @@ export default function WalletHomeScreen({
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {/* Cards Carousel */}
-        {cards && cards.length > 0 && (
-          <View style={styles.carouselWrapper}>
-            <CardsCarousel
-              cards={cards}
-              activeIndex={activeCardIndex}
-              onIndexChange={setActiveCardIndex}
-            />
-          </View>
-        )}
+        <View style={styles.carouselWrapper}>
+          <CardsCarousel
+            cards={cards}
+            activeIndex={activeCardIndex}
+            onIndexChange={setActiveCardIndex}
+            onAddCard={() => setShowAddCard(true)}
+            onCardPress={(card) => setEditingCard(card)}
+          />
+        </View>
 
-        {/* Metrics Section */}
         <View style={styles.metricsContainer}>
-          {/* Available limit */}
           {hasCard && (
             <MetricCard
               label="Available limit"
@@ -463,7 +456,6 @@ export default function WalletHomeScreen({
             />
           )}
 
-          {/* Total spent */}
           <MetricCard
             label="Total spent"
             value={formatCurrency(totalSpent)}
@@ -471,7 +463,6 @@ export default function WalletHomeScreen({
             badge={hasCard ? `${percentage}%` : undefined}
           />
 
-          {/* Split Row: Pending & Paid */}
           <View style={styles.splitRow}>
             <MetricCard
               label="Pending"
@@ -487,7 +478,6 @@ export default function WalletHomeScreen({
           </View>
         </View>
 
-        {/* Transactions Section */}
         <View style={styles.transactionsSection}>
           <View style={styles.transactionsHeader}>
             <Text style={styles.transactionsTitle}>TRANSACTIONS</Text>
@@ -525,7 +515,14 @@ export default function WalletHomeScreen({
         </View>
       </ScrollView>
 
-      {/* Transaction Details Modal */}
+      <AddCardModal visible={showAddCard} onClose={() => setShowAddCard(false)} />
+
+      <AddCardModal
+        visible={!!editingCard}
+        card={editingCard}
+        onClose={() => setEditingCard(null)}
+      />
+
       <TransactionDetailsModal
         visible={showDetailsModal}
         expense={selectedExpense}
@@ -539,7 +536,6 @@ export default function WalletHomeScreen({
         }}
       />
 
-      {/* Edit Expense Modal */}
       <EditExpenseScreen
         visible={showEditExpense}
         expense={editingExpense}
@@ -575,11 +571,11 @@ function createStyles(colors: ThemeColors) {
       letterSpacing: 1.5,
     },
     carouselWrapper: {
-      marginBottom: 16,
+      marginBottom: 2,
     },
     metricsContainer: {
       paddingHorizontal: 22,
-      paddingTop: 22,
+      paddingTop: 10,
     },
     splitRow: {
       flexDirection: 'row',
@@ -633,6 +629,7 @@ function createStyles(colors: ThemeColors) {
     statusDot: {
       width: 8,
       height: 8,
+      marginRight: 12,
       borderRadius: BORDER_RADIUS.full,
       borderWidth: 0.5,
       borderColor: colors.borderLight,
