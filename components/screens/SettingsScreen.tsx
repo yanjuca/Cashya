@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -23,6 +24,7 @@ import { formatCurrency } from '../../utils/formatters';
 
 import AddCardModal from '../cards/AddCardModal';
 import BottomSheetModal from '../ui/BottomSheetModal';
+import ToggleRow from '../ui/ToggleRow';
 
 export interface SettingsScreenProps {
   onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
@@ -34,11 +36,21 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
   const { reloadExpenses, resetExpenses } = useExpenses();
   const { resetCards } = useCards();
   const { colors, themeMode, accentColor, setThemeMode, setAccentColor, accentList } = useTheme();
+  const {
+    user,
+    hasAccount,
+    openAuth,
+    logout,
+    removeAccount,
+    biometricAvailable,
+    biometricEnabled,
+    biometricLabel,
+    biometricIcon,
+    setBiometricEnabled,
+  } = useAuth();
 
-  // Modal State for Add Card
   const [showAddCardModal, setShowAddCardModal] = useState(false);
 
-  // Modal State for Restore
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreJsonInput, setRestoreJsonInput] = useState('');
 
@@ -64,7 +76,71 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
     setAccentColor(colorValue);
   };
 
-  // Handle Remove Card
+  const handleOpenAuth = (mode: 'login' | 'register') => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    openAuth(mode);
+  };
+
+  const handleToggleBiometric = async (next: boolean) => {
+    triggerHaptic();
+    const ok = await setBiometricEnabled(next);
+    if (next && !ok) {
+      showAlert({
+        title: 'Not Enabled',
+        message: `We could not verify your ${biometricLabel}. Please try again.`,
+        type: 'warning',
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    showAlert({
+      title: 'Log Out',
+      message: 'You will be logged out. Your expenses and cards stay on this device.',
+      type: 'warning',
+      icon: 'log-out-outline',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: () => {
+            logout();
+          },
+        },
+      ],
+    });
+  };
+
+  const handleRemoveLogin = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    showAlert({
+      title: 'Remove Login',
+      message:
+        'Your account will be deleted from this device and Cashya will stop asking you to log in. Your expenses and cards stay on this device.',
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await removeAccount();
+            if (!result.success) {
+              showAlert({
+                title: 'Error',
+                message: result.message || 'Could not remove your account. Please try again.',
+                type: 'danger',
+              });
+            }
+          },
+        },
+      ],
+    });
+  };
+
   const handleRemoveCard = (card: CreditCard) => {
     showAlert({
       title: 'Remove Card',
@@ -84,7 +160,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
     });
   };
 
-  // Handle Export Backup
   const handleExportBackup = async () => {
     const success = await BackupService.shareBackup();
     if (success) {
@@ -96,7 +171,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
     }
   };
 
-  // Handle Restore Backup
   const handleRestoreBackup = async () => {
     if (!restoreJsonInput.trim()) {
       showAlert({
@@ -127,7 +201,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
     }
   };
 
-  // Handle Clear All Data
   const handleClearAllData = () => {
     showAlert({
       title: 'Reset All Data',
@@ -156,7 +229,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <StatusBar barStyle={colors.statusBar} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -164,12 +237,128 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {/* SECTION 1: APPEARANCE & THEME SWITCHER */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+
+          <View style={styles.accountCard}>
+            {user ? (
+              <>
+                <View style={styles.accountRow}>
+                  <View style={styles.accountAvatar}>
+                    <Text style={styles.accountAvatarText}>
+                      {(user.name.trim().charAt(0) || '?').toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName} numberOfLines={1}>
+                      {user.name}
+                    </Text>
+                    <Text style={styles.accountEmail} numberOfLines={1}>
+                      {user.email}
+                    </Text>
+                  </View>
+                  <View style={styles.accountStatus}>
+                    <View style={styles.accountStatusDot} />
+                    <Text style={styles.accountStatusText}>LOGGED IN</Text>
+                  </View>
+                </View>
+
+                {biometricAvailable && (
+                  <ToggleRow
+                    icon={biometricIcon}
+                    title={`Unlock with ${biometricLabel}`}
+                    subtitle="Skip typing your password when opening Cashya"
+                    value={biometricEnabled}
+                    onChange={handleToggleBiometric}
+                    style={styles.biometricToggle}
+                  />
+                )}
+
+                <View style={styles.accountActions}>
+                  <TouchableOpacity
+                    style={styles.accountBtnSecondaryFull}
+                    onPress={handleLogout}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="log-out-outline" size={18} color={colors.text} />
+                    <Text style={styles.backupBtnSecondaryText}>Log Out</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.accountBtnPrimaryFull}
+                    onPress={handleRemoveLogin}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.primaryText} />
+                    <Text style={styles.backupBtnPrimaryText}>Remove Login</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.accountIntro}>
+                  <View style={styles.accountIconBadge}>
+                    <Ionicons name="person-outline" size={20} color={colors.text} />
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName}>
+                      {hasAccount ? 'You are not logged in' : 'Logging in is optional'}
+                    </Text>
+                    <Text style={styles.accountEmail}>
+                      {hasAccount ? 'Log in to your Cashya account.' : 'Cashya works fully offline.'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.backupCardDesc}>
+                  You can use Cashya with or without an account. Create one if you want to log in
+                  whenever you open the app.
+                </Text>
+
+                <View style={styles.backupBtnRow}>
+                  <TouchableOpacity
+                    style={hasAccount ? styles.backupBtnSecondary : styles.backupBtnPrimary}
+                    onPress={() => handleOpenAuth('register')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="person-add-outline"
+                      size={18}
+                      color={hasAccount ? colors.text : colors.primaryText}
+                    />
+                    <Text
+                      style={hasAccount ? styles.backupBtnSecondaryText : styles.backupBtnPrimaryText}
+                    >
+                      Create Account
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={hasAccount ? styles.backupBtnPrimary : styles.backupBtnSecondary}
+                    onPress={() => handleOpenAuth('login')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="log-in-outline"
+                      size={18}
+                      color={hasAccount ? colors.primaryText : colors.text}
+                    />
+                    <Text
+                      style={hasAccount ? styles.backupBtnPrimaryText : styles.backupBtnSecondaryText}
+                    >
+                      Log In
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>APPEARANCE</Text>
 
           <View style={styles.appearanceCard}>
-            {/* Theme Mode Segmented Picker */}
             <Text style={styles.subSectionTitle}>THEME MODE</Text>
             <View style={styles.themeModeRow}>
               <TouchableOpacity
@@ -219,7 +408,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
               </TouchableOpacity>
             </View>
 
-            {/* Accent Color Palette Picker */}
             <View style={styles.accentDivider} />
             <Text style={styles.subSectionTitle}>ACCENT COLOR</Text>
             <View style={styles.accentColorsGrid}>
@@ -260,7 +448,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
           </View>
         </View>
 
-        {/* SECTION 2: CARDS */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>MY CARDS</Text>
@@ -309,7 +496,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
           </View>
         </View>
 
-        {/* SECTION 3: BACKUP & OFFLINE-FIRST */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>BACKUP & RESTORE (OFFLINE-FIRST)</Text>
 
@@ -341,7 +527,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
           </View>
         </View>
 
-        {/* RESET DATABASE BUTTON */}
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.dangerButton}
@@ -353,7 +538,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
           </TouchableOpacity>
         </View>
 
-        {/* SECTION 5: ABOUT */}
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>cashya</Text>
           <Text style={styles.aboutVersion}>Version 0.6</Text>
@@ -363,13 +547,11 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         </View>
       </ScrollView>
 
-      {/* MODAL: ADD CARD */}
       <AddCardModal
         visible={showAddCardModal}
         onClose={() => setShowAddCardModal(false)}
       />
 
-      {/* MODAL: RESTORE BACKUP */}
       <BottomSheetModal
         visible={showRestoreModal}
         onClose={() => setShowRestoreModal(false)}
@@ -433,6 +615,111 @@ function createStyles(colors: ThemeColors) {
       color: colors.textSecondary,
       letterSpacing: 0.8,
       marginBottom: 10,
+    },
+    accountCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    accountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 16,
+    },
+    accountIntro: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14,
+    },
+    accountAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountAvatarText: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 20,
+      color: colors.primaryText,
+      letterSpacing: 1,
+    },
+    accountIconBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountInfo: {
+      flex: 1,
+    },
+    accountName: {
+      fontFamily: FONTS.medium,
+      fontSize: 14,
+      color: colors.text,
+    },
+    accountEmail: {
+      fontFamily: FONTS.regular,
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    accountStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    accountStatusDot: {
+      width: 7,
+      height: 7,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.success,
+    },
+    accountStatusText: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 10,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+    },
+    accountBtnSecondaryFull: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackgroundLight,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 6,
+    },
+    biometricToggle: {
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+      borderRadius: 0,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      marginBottom: 16,
+    },
+    accountActions: {
+      gap: 10,
+    },
+    accountBtnPrimaryFull: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      gap: 6,
     },
     appearanceCard: {
       backgroundColor: colors.cardBackground,
