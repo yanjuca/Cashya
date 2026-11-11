@@ -1,7 +1,3 @@
-/**
- * Core domain types and contracts for Cashya
- */
-
 export type CardBrand = 'visa' | 'mastercard' | 'elo' | 'generic';
 export type CardType = 'Credit' | 'Debit' | 'Crédito' | 'Débito';
 
@@ -24,6 +20,10 @@ export interface Expense {
   date: Date;
   tags: string[];
   paid: boolean;
+  recurring?: boolean;
+  recurringMonths?: number;
+  recurringSourceId?: string;
+  skippedMonths?: string[];
   source?: 'manual' | 'notification' | 'import';
   cardId?: string;
 }
@@ -46,6 +46,10 @@ export interface BackupData {
     date: string;
     tags: string[];
     paid: boolean;
+    recurring?: boolean;
+    recurringMonths?: number;
+    recurringSourceId?: string;
+    skippedMonths?: string[];
     source?: 'manual' | 'notification' | 'import';
     cardId?: string;
   }[];

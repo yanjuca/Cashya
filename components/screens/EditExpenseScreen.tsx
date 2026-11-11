@@ -16,6 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { Expense } from '../../types';
 import BottomSheetModal from '../ui/BottomSheetModal';
+import RecurringToggle from '../ui/RecurringToggle';
 
 interface EditExpenseScreenProps {
   visible?: boolean;
@@ -48,6 +49,12 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(activeExpense?.tags || []);
+  const [recurring, setRecurring] = useState(
+    !!(activeExpense?.recurring || activeExpense?.recurringSourceId)
+  );
+  const [recurringMonths, setRecurringMonths] = useState(
+    activeExpense?.recurringMonths ? String(activeExpense.recurringMonths) : ''
+  );
 
   useEffect(() => {
     if (expense) {
@@ -58,6 +65,8 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
       setDate(new Date(expense.date));
       setTags(expense.tags || []);
       setTagInput('');
+      setRecurring(!!(expense.recurring || expense.recurringSourceId));
+      setRecurringMonths(expense.recurringMonths ? String(expense.recurringMonths) : '');
     }
   }, [expense]);
 
@@ -110,6 +119,9 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
     }
 
     try {
+      const isSeriesCopy = !!activeExpense.recurringSourceId;
+      const stopsSeries = isSeriesCopy && !recurring;
+
       await editExpense(activeExpense.id, {
         description: description.trim(),
         amount: parsedAmount,
@@ -117,7 +129,19 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         date: date,
         tags: tags,
         cardId: selectedCardId,
+        ...(isSeriesCopy
+          ? {}
+          : {
+              recurring,
+              recurringMonths:
+                recurring && recurringMonths ? parseInt(recurringMonths, 10) : undefined,
+            }),
+        ...(stopsSeries ? { recurringSourceId: undefined } : {}),
       });
+
+      if (stopsSeries && activeExpense.recurringSourceId) {
+        await editExpense(activeExpense.recurringSourceId, { recurring: false });
+      }
 
       onClose();
       showAlert({
@@ -189,7 +213,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         </TouchableOpacity>
       }
     >
-      {/* Description Input */}
       <Text style={styles.inputLabel}>Description</Text>
       <TextInput
         style={styles.modalInput}
@@ -200,7 +223,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         autoCapitalize="sentences"
       />
 
-      {/* Amount Input */}
       <Text style={styles.inputLabel}>Amount ($)</Text>
       <TextInput
         style={[styles.modalInput, styles.amountInput]}
@@ -211,7 +233,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         keyboardType="decimal-pad"
       />
 
-      {/* Person Input */}
       <Text style={styles.inputLabel}>Responsible / Who Pays</Text>
       <TextInput
         style={styles.modalInput}
@@ -222,7 +243,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         autoCapitalize="words"
       />
 
-      {/* Card Selector */}
       {cards.length > 0 && (
         <>
           <Text style={styles.inputLabel}>Payment Method</Text>
@@ -267,7 +287,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         </>
       )}
 
-      {/* Date Picker Button */}
       <Text style={styles.inputLabel}>Date</Text>
       <TouchableOpacity
         style={styles.modalInputRow}
@@ -295,7 +314,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         />
       )}
 
-      {/* Tags Input */}
       <Text style={styles.inputLabel}>Tags</Text>
       <View style={styles.tagInputWrapper}>
         <TextInput
@@ -312,7 +330,6 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         </TouchableOpacity>
       </View>
 
-      {/* Tag Chips Display */}
       {tags.length > 0 && (
         <View style={styles.tagsDisplayRow}>
           {tags.map((tag) => (
@@ -328,7 +345,14 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
         </View>
       )}
 
-      {/* Submit Button */}
+      <RecurringToggle
+        value={recurring}
+        onChange={setRecurring}
+        subtitle={activeExpense.recurringSourceId ? 'Applies to the whole series' : undefined}
+        months={recurringMonths}
+        onMonthsChange={activeExpense.recurringSourceId ? undefined : setRecurringMonths}
+      />
+
       <TouchableOpacity
         style={styles.modalSaveButton}
         onPress={handleSave}

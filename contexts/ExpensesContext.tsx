@@ -1,7 +1,12 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { LayoutAnimation, Platform } from 'react-native';
+import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { AppState, LayoutAnimation, Platform } from 'react-native';
 import { StorageService } from '../services/storage';
 import { Expense } from '../types';
+import {
+  dropFutureCopies,
+  generateRecurringExpenses,
+  registerSkippedMonths,
+} from '../utils/recurring';
 
 export { Expense };
 
@@ -23,18 +28,38 @@ interface ExpensesProviderProps {
   children: ReactNode;
 }
 
+const withRecurring = (list: Expense[]): Expense[] => {
+  const generated = generateRecurringExpenses(list);
+  return generated.length > 0 ? [...generated, ...list] : list;
+};
+
 export function ExpensesProvider({ children }: ExpensesProviderProps) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const expensesRef = useRef<Expense[]>([]);
 
   useEffect(() => {
     loadExpenses();
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        loadExpenses();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   const loadExpenses = async () => {
     try {
       const data = await StorageService.getExpenses();
-      setExpenses(data);
+      const merged = withRecurring(data);
+      if (merged.length !== data.length) {
+        await StorageService.saveExpenses(merged);
+      }
+      expensesRef.current = merged;
+      setExpenses(merged);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -44,6 +69,8 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
 
   const saveAndSetExpenses = async (newExpenses: Expense[]) => {
     try {
+      const finalList = withRecurring(newExpenses);
+      expensesRef.current = finalList;
       if (Platform.OS !== 'web') {
         LayoutAnimation.configureNext({
           duration: 320,
@@ -61,8 +88,8 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
           },
         });
       }
-      await StorageService.saveExpenses(newExpenses);
-      setExpenses(newExpenses);
+      await StorageService.saveExpenses(finalList);
+      setExpenses(finalList);
     } catch (error) {
       console.error('Error saving expenses:', error);
     }
@@ -73,30 +100,39 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
       ...expense,
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
     };
-    const newExpenses = [newExpense, ...expenses];
-    await saveAndSetExpenses(newExpenses);
+    await saveAndSetExpenses([newExpense, ...expensesRef.current]);
   };
 
   const editExpense = async (id: string, updatedExpense: Partial<Expense>) => {
-    const newExpenses = expenses.map((e) =>
-      e.id === id ? { ...e, ...updatedExpense } : e
-    );
-    await saveAndSetExpenses(newExpenses);
+    const current = expensesRef.current;
+    const target = current.find((e) => e.id === id);
+    let next = current.map((e) => (e.id === id ? { ...e, ...updatedExpense } : e));
+    if (target && !target.recurringSourceId) {
+      next = dropFutureCopies(next, new Set([id]));
+      if ('recurringMonths' in updatedExpense) {
+        next = next.map((e) =>
+          e.recurringSourceId === id ? { ...e, recurringMonths: updatedExpense.recurringMonths } : e
+        );
+      }
+    }
+    await saveAndSetExpenses(next);
   };
 
   const removeExpense = async (id: string) => {
-    const newExpenses = expenses.filter((e) => e.id !== id);
-    await saveAndSetExpenses(newExpenses);
+    await removeExpenses([id]);
   };
 
   const removeExpenses = async (ids: string[]) => {
     const idSet = new Set(ids);
-    const newExpenses = expenses.filter((e) => !idSet.has(e.id));
-    await saveAndSetExpenses(newExpenses);
+    const current = expensesRef.current;
+    const removed = current.filter((e) => idSet.has(e.id));
+    const remaining = current.filter((e) => !idSet.has(e.id));
+    const cleaned = dropFutureCopies(remaining, idSet);
+    await saveAndSetExpenses(registerSkippedMonths(cleaned, removed));
   };
 
   const togglePaid = async (id: string) => {
-    const newExpenses = expenses.map((e) =>
+    const newExpenses = expensesRef.current.map((e) =>
       e.id === id ? { ...e, paid: !e.paid } : e
     );
     await saveAndSetExpenses(newExpenses);

@@ -29,7 +29,6 @@ import CalendarView from './CalendarView';
 import EditExpenseScreen from './EditExpenseScreen';
 import TransactionDetailsModal from './TransactionDetailsModal';
 
-// Transactions Screen (ViewMode: list or calendar) - Standalone browsing mode (Edit mode disabled)
 export type ViewMode = 'list' | 'calendar';
 
 export interface TransactionsScreenProps {
@@ -52,13 +51,11 @@ export default function TransactionsScreen({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsExpense, setDetailsExpense] = useState<Expense | null>(null);
 
-  // Filters for List Mode
   const [searchText, setSearchText] = useState('');
   const [filterPerson, setFilterPerson] = useState<string | null>(null);
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid'>('all');
 
-  // State for Calendar Mode
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -91,7 +88,6 @@ export default function TransactionsScreen({
   };
 
 
-  // Extract unique persons and tags
   const allPersons = useMemo(() => {
     return Array.from(new Set(expenses.map((e) => e.person))).filter(Boolean).sort();
   }, [expenses]);
@@ -100,7 +96,6 @@ export default function TransactionsScreen({
     return Array.from(new Set(expenses.flatMap((e) => e.tags))).filter(Boolean).sort();
   }, [expenses]);
 
-  // Filtered expenses for List Mode
   const listExpenses = useMemo(() => {
     return expenses.filter((expense) => {
       const matchesSearch =
@@ -117,7 +112,6 @@ export default function TransactionsScreen({
     });
   }, [expenses, searchText, filterPerson, filterTag, filterStatus]);
 
-  // Grouping structure
   interface ExpenseGroup {
     type: 'group';
     key: string;
@@ -185,7 +179,6 @@ export default function TransactionsScreen({
 
   const groupedListExpenses = useMemo(() => groupExpenses(listExpenses), [listExpenses]);
 
-  // Filtered expenses for Calendar Mode
   const monthExpenses = useMemo(() => {
     return expenses.filter((expense) => {
       return (
@@ -262,7 +255,6 @@ export default function TransactionsScreen({
     changeToNextMonth();
   };
 
-  // Individual Tactile Expense Card Component
   const TactileCardItem = React.memo(({
     item,
     isSubItem = false,
@@ -311,7 +303,6 @@ export default function TransactionsScreen({
             delayLongPress={300}
           >
             <View style={styles.cardMainRow}>
-              {/* Card Content */}
               <View style={styles.cardContent}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.description} numberOfLines={1}>{item.description}</Text>
@@ -365,7 +356,6 @@ export default function TransactionsScreen({
   const AnimatedGroupCard = React.memo(({ group }: { group: ExpenseGroup }) => {
     const isExpanded = expandedGroupKeys.has(group.key);
 
-    // Animation values
     const animValue = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
     const [contentHeight, setContentHeight] = useState(0);
 
@@ -434,7 +424,6 @@ export default function TransactionsScreen({
                   </View>
                 </View>
 
-                {/* Expand / Collapse Chevron with rotation animation */}
                 <TouchableOpacity
                   style={styles.groupChevronBtn}
                   onPress={() => toggleGroupExpand(group.key)}
@@ -450,7 +439,6 @@ export default function TransactionsScreen({
           </View>
         </Animated.View>
 
-        {/* Animated Collapsible Sub-expenses list with Filetree branch lines */}
         <Animated.View
           style={[
             styles.collapsibleContent,
@@ -483,7 +471,6 @@ export default function TransactionsScreen({
 
                 return (
                   <View key={expense.id} style={styles.treeItemWrapper}>
-                    {/* Filetree vertical trunk line segment */}
                     <View
                       style={[
                         styles.treeTrunkSegment,
@@ -492,10 +479,8 @@ export default function TransactionsScreen({
                       ]}
                     />
 
-                    {/* Filetree horizontal branch line leading into the card */}
                     <View style={styles.treeBranchLine} />
 
-                    {/* Sub-expense card */}
                     <View style={styles.treeCardContainer}>
                       {renderExpenseCard(expense, true)}
                     </View>
@@ -518,9 +503,8 @@ export default function TransactionsScreen({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <StatusBar barStyle={colors.statusBar} />
 
-      {/* VIEW MODE: LIST */}
       {viewMode === 'list' && (
         <ScrollView
           style={styles.contentFlex}
@@ -529,7 +513,6 @@ export default function TransactionsScreen({
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          {/* Search Input */}
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.searchIcon} />
             <TextInput
@@ -546,14 +529,12 @@ export default function TransactionsScreen({
             )}
           </View>
 
-          {/* Filter Chips Scroll */}
           <View style={styles.filtersWrapper}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filtersContent}
             >
-              {/* Status Chips */}
               <TouchableOpacity
                 style={[styles.chip, filterStatus === 'all' && styles.chipActive]}
                 onPress={() => {
@@ -592,7 +573,6 @@ export default function TransactionsScreen({
                 </Text>
               </TouchableOpacity>
 
-              {/* Persons */}
               {allPersons.map((person) => (
                 <TouchableOpacity
                   key={person}
@@ -608,7 +588,6 @@ export default function TransactionsScreen({
                 </TouchableOpacity>
               ))}
 
-              {/* Tags */}
               {allTags.map((tag) => (
                 <TouchableOpacity
                   key={tag}
@@ -624,7 +603,6 @@ export default function TransactionsScreen({
                 </TouchableOpacity>
               ))}
 
-              {/* Clear button */}
               {(filterPerson || filterTag || filterStatus !== 'all' || searchText) && (
                 <TouchableOpacity
                   style={styles.chipClear}
@@ -639,7 +617,6 @@ export default function TransactionsScreen({
             </ScrollView>
           </View>
 
-          {/* List of Expenses */}
           <View style={styles.itemsWrapper}>
             {listExpenses.length === 0 ? (
               <View style={styles.emptyContainer}>
@@ -652,7 +629,6 @@ export default function TransactionsScreen({
         </ScrollView>
       )}
 
-      {/* VIEW MODE: CALENDAR */}
       {viewMode === 'calendar' && (
         <ScrollView
           style={styles.contentFlex}
@@ -661,9 +637,7 @@ export default function TransactionsScreen({
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          {/* Calendar Section */}
           <View style={styles.calendarSection}>
-            {/* Month Switcher Header */}
             <View style={styles.monthNavRow}>
               <TouchableOpacity onPress={handlePreviousMonthBtn} style={styles.monthNavBtn} activeOpacity={0.7}>
                 <Text style={styles.monthNavArrowText}>‹</Text>
@@ -697,7 +671,6 @@ export default function TransactionsScreen({
               />
             )}
 
-            {/* Month Summary Bar */}
             <View style={styles.calendarSummaryBar}>
               <View style={styles.summaryCol}>
                 <Text style={styles.summaryLabel}>MONTH TOTAL</Text>
@@ -712,7 +685,6 @@ export default function TransactionsScreen({
               </View>
             </View>
 
-            {/* Dot-matrix Calendar View (Horizontal paginated carousel) */}
             <CalendarView
               currentMonth={currentMonth}
               selectedDate={selectedDate}
@@ -732,7 +704,6 @@ export default function TransactionsScreen({
               onGestureActive={onCalendarGestureActive}
             />
 
-            {/* Selected Date Filter Badge */}
             {selectedDate && (
               <View style={styles.dateFilterChipRow}>
                 <Text style={styles.dateFilterChipText}>
@@ -745,7 +716,6 @@ export default function TransactionsScreen({
             )}
           </View>
 
-          {/* Section Divider & Header */}
           <View style={styles.calendarTransactionsHeader}>
             <View style={styles.calendarDividerLine} />
             <View style={styles.calendarHeaderInfoRow}>
@@ -759,7 +729,6 @@ export default function TransactionsScreen({
             </View>
           </View>
 
-          {/* Calendar Expenses List */}
           <View style={styles.itemsWrapper}>
             {calendarExpenses.length === 0 ? (
               <View style={styles.calendarEmptyContainer}>
@@ -772,7 +741,6 @@ export default function TransactionsScreen({
         </ScrollView>
       )}
 
-      {/* Transaction Details Modal */}
       <TransactionDetailsModal
         visible={showDetailsModal}
         expense={detailsExpense}
@@ -786,7 +754,6 @@ export default function TransactionsScreen({
         }}
       />
 
-      {/* Edit Expense Modal (only accessible in edit mode) */}
       <EditExpenseScreen
         visible={showEditExpense}
         expense={selectedExpense}
@@ -941,6 +908,7 @@ function createStyles(colors: ThemeColors) {
     statusDot: {
       width: 8,
       height: 8,
+      marginRight: 12,
       borderRadius: BORDER_RADIUS.full,
       backgroundColor: colors.primary,
       borderWidth: 0.5,
@@ -1189,7 +1157,6 @@ function createStyles(colors: ThemeColors) {
       fontSize: 12,
       color: colors.textMuted,
     },
-    // Grouping styles
     groupWrapper: {
       marginBottom: 10,
     },
