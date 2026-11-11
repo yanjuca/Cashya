@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,17 +10,19 @@ import { useAlert } from '../../contexts/AlertContext';
 import { useCards } from '../../contexts/CardsContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
-import { CardBrand, CardType } from '../../types';
+import { CardBrand, CardType, CreditCard } from '../../types';
 import BottomSheetModal from '../ui/BottomSheetModal';
 
 interface AddCardModalProps {
   visible: boolean;
   onClose: () => void;
+  card?: CreditCard | null;
 }
 
-export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
+export default function AddCardModal({ visible, onClose, card }: AddCardModalProps) {
   const { showAlert } = useAlert();
-  const { addCard } = useCards();
+  const { addCard, updateCard } = useCards();
+  const isEditing = !!card;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -40,6 +42,49 @@ export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
     setCardBrand('visa');
   };
 
+  useEffect(() => {
+    if (!visible) return;
+    if (card) {
+      setCardHolder(card.holderName);
+      setCardType(card.type);
+      setCardBrand(card.brand);
+      setCardLastDigits(card.lastDigits);
+      setCardExpiry(card.expiryDate);
+      setCardLimit(String(card.limit));
+    } else {
+      resetForm();
+    }
+  }, [visible, card]);
+
+  const handleLastDigitsChange = (text: string) => {
+    setCardLastDigits(text.replace(/\D/g, '').slice(0, 4));
+  };
+
+  const handleExpiryChange = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 4);
+    const isDeleting = text.length < cardExpiry.length;
+
+    if (digits.length === 1 && Number(digits) > 1 && !isDeleting) {
+      setCardExpiry(`0${digits}/`);
+      return;
+    }
+    if (digits.length > 2) {
+      setCardExpiry(`${digits.slice(0, 2)}/${digits.slice(2)}`);
+      return;
+    }
+    if (digits.length === 2 && !isDeleting) {
+      setCardExpiry(`${digits}/`);
+      return;
+    }
+    setCardExpiry(digits);
+  };
+
+  const isExpiryValid = (value: string) => {
+    if (!/^\d{2}\/\d{2}$/.test(value)) return false;
+    const month = Number(value.slice(0, 2));
+    return month >= 1 && month <= 12;
+  };
+
   const handleCreateCard = async () => {
     if (!cardHolder.trim()) {
       showAlert({
@@ -57,12 +102,39 @@ export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
       });
       return;
     }
+    if (cardExpiry.trim() && !isExpiryValid(cardExpiry.trim())) {
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a valid expiry date (MM/YY).',
+        type: 'warning',
+      });
+      return;
+    }
     const limitNum = parseFloat(cardLimit);
     if (isNaN(limitNum) || limitNum <= 0) {
       showAlert({
         title: 'Warning',
         message: 'Please enter a valid limit greater than zero.',
         type: 'warning',
+      });
+      return;
+    }
+
+    if (card) {
+      await updateCard(card.id, {
+        holderName: cardHolder.trim().toUpperCase(),
+        brand: cardBrand,
+        type: cardType,
+        lastDigits: cardLastDigits.trim(),
+        expiryDate: cardExpiry.trim() || '12/29',
+        limit: limitNum,
+      });
+
+      onClose();
+      showAlert({
+        title: 'Success',
+        message: 'Card updated successfully!',
+        type: 'success',
       });
       return;
     }
@@ -90,7 +162,7 @@ export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
     <BottomSheetModal
       visible={visible}
       onClose={onClose}
-      title="New Card"
+      title={isEditing ? 'Edit Card' : 'New Card'}
     >
       <Text style={styles.inputLabel}>Cardholder Name</Text>
       <TextInput
@@ -156,8 +228,8 @@ export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
             placeholder="1234"
             placeholderTextColor={colors.textMuted}
             value={cardLastDigits}
-            onChangeText={setCardLastDigits}
-            keyboardType="numeric"
+            onChangeText={handleLastDigitsChange}
+            keyboardType="number-pad"
             maxLength={4}
           />
         </View>
@@ -169,7 +241,8 @@ export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
             placeholder="12/29"
             placeholderTextColor={colors.textMuted}
             value={cardExpiry}
-            onChangeText={setCardExpiry}
+            onChangeText={handleExpiryChange}
+            keyboardType="number-pad"
             maxLength={5}
           />
         </View>
@@ -190,7 +263,7 @@ export default function AddCardModal({ visible, onClose }: AddCardModalProps) {
         onPress={handleCreateCard}
         activeOpacity={0.8}
       >
-        <Text style={styles.modalSaveButtonText}>Save Card</Text>
+        <Text style={styles.modalSaveButtonText}>{isEditing ? 'Save Changes' : 'Save Card'}</Text>
       </TouchableOpacity>
     </BottomSheetModal>
   );
