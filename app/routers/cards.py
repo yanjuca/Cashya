@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.serialization import envelope
+from app.models.card import Card
 from app.models.user import User
 from app.schemas.card import CardCreate, CardPatch, CardRead, CardUpdate
 from app.services.cards import card_summary, create_card, get_owned_card, list_cards, patch_card, replace_card, soft_delete_card
+from app.services.email_dispatch import send_first_card_nudge
 
 router = APIRouter()
 
@@ -21,8 +24,21 @@ def get_cards(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Register a new card (client UUID accepted)")
-def add_card(data: CardCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
-    return envelope(CardRead.model_validate(create_card(db, user, data)), "Card created successfully")
+def add_card(
+    data: CardCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    existing_card = db.scalar(
+        select(Card.id)
+        .where(Card.user_id == user.id, Card.deleted_at.is_(None))
+        .limit(1)
+    )
+    card = create_card(db, user, data)
+    if existing_card is None:
+        background_tasks.add_task(send_first_card_nudge, user.id)
+    return envelope(CardRead.model_validate(card), "Card created successfully")
 
 
 @router.get("/{card_id}", summary="Card details")

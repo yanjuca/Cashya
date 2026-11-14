@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, String, false, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -16,6 +16,9 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    email_notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    email_reports_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

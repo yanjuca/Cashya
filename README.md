@@ -12,6 +12,7 @@ API do Cashya para despesas pessoais e compartilhadas, construída com FastAPI, 
 - Sincronização: `POST /sync/batch` (mutations + `serverChanges` + `conflicts`), `since` nas listagens, `import-backup` e `export-backup`.
 - Telas do app: `dashboard/summary` (Home/Carteira), `expenses/calendar` (Calendário), `expenses` com filtros (Despesas), `users/me` (Perfil/Configurações).
 - Caixa de entrada de transações capturadas de notificações e estatísticas por pessoa/tag/mês.
+- E-mails transacionais via SMTP: verificação de endereço, recuperação de senha, lembretes semanais e relatórios mensais com preferências por usuário.
 - Todas as rotas em `/api/v1`, envelope `{ success, data, message }`, erros normalizados, OpenAPI em `/docs`.
 - CORS configurável, limite de corpo de requisição, rate limit de autenticação e cabeçalhos HTTP de segurança.
 
@@ -31,7 +32,7 @@ Esta versão adapta o backend ao `BACKEND_SPEC.md` (modelo local-first → nuvem
 | Sincronização | `POST /sync/batch` (mutations + `serverChanges` + `conflicts` com Last-Write-Wins), `POST /sync/import-backup`, `GET /sync/export-backup`. |
 | Home / Carteira | `GET /dashboard/summary` com limite total, disponível, gasto, pendente, pago e resumo por cartão. |
 | Caixa de entrada | `POST /inbox` para enfileirar transações capturadas de notificações. |
-| Banco | Migração `20260921_0002`: tabelas `cards`, `groups`, `group_members`, `refresh_tokens`; colunas `expenses.card_id`, `expenses.group_id`, `users.avatar_url`, `users.updated_at`; novos índices. |
+| Banco | Migrações `20260921_0002` e `20261114_0003`: cartões, grupos, refresh tokens, verificação de e-mail, preferências e rastreamento de entregas. |
 
 ### Mudanças que quebram compatibilidade
 
@@ -135,6 +136,11 @@ Copie `.env.example` para `.env` e ajuste os valores:
 | `CORS_ORIGINS` | `http://localhost:8081,http://127.0.0.1:8081` | Origens permitidas separadas por vírgula. |
 | `MAX_REQUEST_BODY_BYTES` | `1048576` | Tamanho máximo do corpo de requisições de escrita. |
 | `AUTH_RATE_LIMIT_ATTEMPTS` / `AUTH_RATE_LIMIT_WINDOW_SECONDS` | `10` / `60` | Rate limit por IP em login, cadastro e refresh. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | vazio / `587` | Servidor de saída SMTP; usuário e senha devem ser configurados juntos. |
+| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` | vazio / `Cashya` | Endereço e nome do remetente. E-mails ficam desativados até configurar host e remetente. |
+| `SMTP_STARTTLS`, `SMTP_USE_SSL` | `true` / `false` | Transporte SMTP; use SSL implícito ou STARTTLS conforme o provedor. |
+| `EMAIL_SCHEDULE_HOUR_UTC` | `12` | Hora UTC para processar os lembretes semanais e relatórios mensais. |
+| `MONTHLY_REPORT_PROMPT` | mensagem padrão | Texto configurável incluído no relatório mensal. |
 | `API_V1_PREFIX` | `/api/v1` | Prefixo de todas as rotas. |
 | `ENVIRONMENT`, `EXPOSE_DOCS`, `GLOBAL_RATE_LIMIT_PER_MINUTE`, `REQUEST_SIGNING_SECRET`, `MIN_CLIENT_VERSION`, `TRUST_PROXY_HEADERS`, `HSTS_ENABLED` | ver seção de hardening | Camada anti engenharia reversa. |
 
@@ -181,7 +187,7 @@ O cliente está em `api.ts`, já apontando para `/api/v1`, e usa `EXPO_PUBLIC_AP
 | Emulador Android | `http://10.0.2.2:8000` |
 | Celular físico | IP local do computador, como `http://192.168.0.10:8000` |
 
-Enquanto a tela de login não existe, o app cria uma conta de dispositivo automaticamente, guarda `accessToken` e `refreshToken` no AsyncStorage e renova a sessão via `/auth/refresh`.
+No Android e iOS, o app mantém o perfil e o cache local em SQLite e guarda `accessToken`/`refreshToken` no armazenamento seguro do dispositivo. Dados existentes no AsyncStorage são migrados automaticamente na primeira abertura. Na Web, o app mantém o armazenamento do navegador. A sessão é renovada via `/auth/refresh`.
 
 ## Autenticação
 
@@ -193,6 +199,9 @@ Rotas protegidas exigem `Authorization: Bearer <accessToken>`.
 | `POST` | `/api/v1/auth/login` | Retorna `accessToken`, `refreshToken`, `expiresIn` e `user`. |
 | `POST` | `/api/v1/auth/refresh` | Troca `refreshToken` por um novo par (o anterior é revogado; reuso revoga todos). |
 | `POST` | `/api/v1/auth/logout` | Revoga o `refreshToken` informado ou, com `allDevices: true`, todos. |
+| `POST` | `/api/v1/auth/password-reset/request` | Solicita um código de recuperação; a resposta não revela se o e-mail possui conta. |
+| `POST` | `/api/v1/auth/password-reset/confirm` | Confirma `email`, código de 6 dígitos e `newPassword`; invalida sessões existentes. |
+| `POST` | `/api/v1/auth/email-verification/request` / `confirm` | Envia e confirma o código de verificação do usuário autenticado. |
 | `GET` | `/api/v1/auth/me` | Alias de `/users/me`. |
 
 Resposta de `register`/`login`/`refresh`:
@@ -205,7 +214,7 @@ Resposta de `register`/`login`/`refresh`:
     "refreshToken": "<opaco>",
     "tokenType": "Bearer",
     "expiresIn": 3600,
-    "user": { "id": "...", "email": "...", "name": "...", "avatarUrl": null, "createdAt": "...", "updatedAt": null }
+    "user": { "id": "...", "email": "...", "name": "...", "avatarUrl": null, "emailVerified": false, "emailNotificationsEnabled": true, "emailReportsEnabled": true, "createdAt": "...", "updatedAt": null }
   }
 }
 ```
@@ -219,7 +228,14 @@ Resposta de `register`/`login`/`refresh`:
 | `GET` | `/users/me` | Perfil do usuário logado. |
 | `PATCH` | `/users/me` | Altera `name`, `avatarUrl` ou `email` (este exige `currentPassword`). |
 | `POST` | `/users/me/change-password` | `currentPassword` + `newPassword`; encerra as sessões dos outros dispositivos. |
+| `GET` / `PATCH` | `/users/me/email-preferences` | Consulta e atualiza `emailNotificationsEnabled` e `emailReportsEnabled`. |
 | `DELETE` | `/users/me` | Exclui a conta e todos os dados (exige `password`). |
+
+### Notificações por e-mail
+
+O envio é feito pelo backend via SMTP; não depende do SQL Server Database Mail e não exige migrar o banco SQLite/PostgreSQL. Configure as variáveis `SMTP_*` no ambiente de execução, nunca no código versionado. Os códigos de verificação e recuperação expiram em 15 minutos, são de uso único e ficam armazenados como hash. E-mails financeiros só são enviados para endereços verificados. O usuário pode desativar lembretes e relatórios em Configurações.
+
+Com SMTP configurado, o backend envia um lembrete semanal somente quando existem despesas pendentes, um relatório mensal (inclusive quando não houve despesas), um aviso após o primeiro cartão e mensagens de segurança para recuperação/troca de senha ou e-mail. A entrega agendada é deduplicada por usuário e período, com tentativas limitadas. Em produção, aplique `alembic upgrade head`; o agendador executa em cada instância da API, enquanto a restrição única no banco evita envio repetido entre réplicas.
 
 ### Cartões (`/api/v1/cards`)
 

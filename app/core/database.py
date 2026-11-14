@@ -57,6 +57,9 @@ def create_tables() -> None:
         {
             "avatar_url": "VARCHAR(500) NULL",
             "updated_at": "DATETIME NULL",
+            "email_verified": "BOOLEAN NOT NULL DEFAULT FALSE",
+            "email_notifications_enabled": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "email_reports_enabled": "BOOLEAN NOT NULL DEFAULT TRUE",
         },
     )
 
