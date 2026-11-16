@@ -720,7 +720,7 @@ export default function TransactionsScreen({
             <View style={styles.calendarDividerLine} />
             <View style={styles.calendarHeaderInfoRow}>
               <View style={styles.calendarTitleAndToggleRow}>
-                <Text style={styles.calendarTransactionsTitle}>TRANSACTIONS</Text>
+                <Text style={styles.calendarTransactionsTitle}>HISTORY</Text>
               </View>
 
               <Text style={styles.calendarTransactionsCount}>

@@ -101,7 +101,10 @@ const TactileExpenseRow = React.memo(({
 
   const animatedBackgroundColor = selectAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.cardBackground, isDark ? '#1c1214' : colors.cardBackgroundLight],
+    outputRange: [
+      colors.cardBackground,
+      isDark ? colors.cardBackgroundElevated : colors.cardBackgroundLight,
+    ],
   });
 
   const checkboxWidth = editAnim.interpolate({
@@ -428,7 +431,7 @@ export default function WalletHomeScreen({
         contentContainerStyle={[
           styles.mainScrollContent,
           {
-            paddingTop: 4,
+            paddingTop: 16,
             paddingBottom: Math.max(insets.bottom, 10) + 140,
           },
         ]}
@@ -489,7 +492,7 @@ export default function WalletHomeScreen({
           <View style={styles.transactionsList}>
             {sortedExpenses.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="reorder-two-outline" size={32} color="#22222a" />
+                <Ionicons name="reorder-two-outline" size={32} color={colors.borderLight} />
               </View>
             ) : (
               sortedExpenses.map((item) => (
@@ -558,7 +561,7 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
     },
     mainScrollContent: {
-      paddingTop: 4,
+      paddingTop: 16,
     },
     titleSection: {
       paddingHorizontal: 22,
