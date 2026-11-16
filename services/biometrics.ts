@@ -20,7 +20,8 @@ export const NO_BIOMETRICS: BiometricInfo = {
 
 export const BiometricService = {
   async getInfo(): Promise<BiometricInfo> {
-    if (Platform.OS === 'web') return NO_BIOMETRICS;
+    // Biometrics are disabled on web and iOS (iOS Face ID requires a native/dev build, unsupported in Expo Go)
+    if (Platform.OS === 'web' || Platform.OS === 'ios') return NO_BIOMETRICS;
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const enrolled = hasHardware && (await LocalAuthentication.isEnrolledAsync());
@@ -30,13 +31,8 @@ export const BiometricService = {
       const hasFace = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION);
       const hasFinger = types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT);
 
-      if (Platform.OS === 'ios') {
-        if (hasFace) return { available: true, label: 'Face ID', icon: 'scan-outline' };
-        if (hasFinger) return { available: true, label: 'Touch ID', icon: 'finger-print' };
-      } else {
-        if (hasFinger) return { available: true, label: 'Fingerprint', icon: 'finger-print' };
-        if (hasFace) return { available: true, label: 'Face Unlock', icon: 'scan-outline' };
-      }
+      if (hasFinger) return { available: true, label: 'Fingerprint', icon: 'finger-print' };
+      if (hasFace) return { available: true, label: 'Face Unlock', icon: 'scan-outline' };
       return { available: true, label: 'Biometrics', icon: 'finger-print' };
     } catch (error) {
       console.error('Error checking biometrics:', error);

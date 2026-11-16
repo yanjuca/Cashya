@@ -91,7 +91,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <StatusBar barStyle={colors.statusBar} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

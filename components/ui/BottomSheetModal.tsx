@@ -47,6 +47,12 @@ export default function BottomSheetModal({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const scrollViewRef = useRef<ScrollView>(null);
+  const scrollToY = (y: number, animated: boolean) => {
+    const node = scrollViewRef.current as unknown as {
+      scrollTo?: (options: { y: number; animated: boolean }) => void;
+    } | null;
+    node?.scrollTo?.({ y, animated });
+  };
   const isClosingRef = useRef(false);
   const isUserDraggingRef = useRef(false);
   const hasOpenedRef = useRef(false);
@@ -87,7 +93,7 @@ export default function BottomSheetModal({
     scrollY.setValue(cardHeightRef.current);
 
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ y: cardHeightRef.current, animated: false });
+      scrollToY(cardHeightRef.current, false);
     });
 
     Animated.timing(slideAnim, {
@@ -173,13 +179,13 @@ export default function BottomSheetModal({
         }
       }
       isClosingRef.current = true;
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      scrollToY(0, true);
       closeTimeoutRef.current = setTimeout(() => {
         triggerClose();
       }, 300);
     } else {
       // Snap back up to open position
-      scrollViewRef.current?.scrollTo({ y: target, animated: true });
+      scrollToY(target, true);
       isUserDraggingRef.current = false;
     }
   };

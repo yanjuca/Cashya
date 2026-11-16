@@ -258,7 +258,6 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
                     </Text>
                   </View>
                   <View style={styles.accountStatus}>
-                    <View style={styles.accountStatusDot} />
                     <Text style={styles.accountStatusText}>LOGGED IN</Text>
                   </View>
                 </View>
@@ -497,7 +496,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BACKUP & RESTORE (OFFLINE-FIRST)</Text>
+          <Text style={styles.sectionTitle}>BACKUP & RESTORE</Text>
 
           <View style={styles.backupCard}>
             <Text style={styles.backupCardDesc}>
@@ -540,10 +539,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
 
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>cashya</Text>
-          <Text style={styles.aboutVersion}>Version 0.6</Text>
-          <Text style={styles.aboutTagline}>
-            offline-first • nothing os aesthetic
-          </Text>
+          <Text style={styles.aboutVersion}>Version 0.7</Text>
         </View>
       </ScrollView>
 
@@ -676,13 +672,6 @@ function createStyles(colors: ThemeColors) {
     accountStatus: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-    },
-    accountStatusDot: {
-      width: 7,
-      height: 7,
-      borderRadius: BORDER_RADIUS.full,
-      backgroundColor: colors.success,
     },
     accountStatusText: {
       fontFamily: FONTS.ndotCaps || FONTS.system,
@@ -965,14 +954,6 @@ function createStyles(colors: ThemeColors) {
       fontFamily: FONTS.regular,
       fontSize: 11,
       color: colors.textSecondary,
-      marginBottom: 4,
-    },
-    aboutTagline: {
-      fontFamily: FONTS.regular,
-      fontSize: 11,
-      color: colors.textMuted,
-      textAlign: 'center',
-      paddingHorizontal: 20,
     },
     modalSaveButton: {
       backgroundColor: colors.primary,

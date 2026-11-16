@@ -346,14 +346,14 @@ export default function TransactionDetailsModal({
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="pencil-outline" size={19} color="#ffffff" />
+                <Ionicons name="pencil-outline" size={19} color={colors.text} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close" size={24} color="#ffffff" />
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>

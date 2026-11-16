@@ -287,7 +287,7 @@ export default function TabsLayout() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.background} />
+      <StatusBar barStyle={colors.statusBar} />
 
       {/* Persistent Header across tabs */}
       <View style={styles.header}>
