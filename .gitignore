@@ -10,3 +10,4 @@ cashya.db-*
 tests/test_cashya.db
 .coverage
 htmlcov/
+data/

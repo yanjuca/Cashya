@@ -89,6 +89,7 @@ Cashya/
     ├── tests/                # Testes automatizados (pytest)
     ├── .env.example
     ├── Dockerfile
+    ├── docker-compose.yml
     ├── requirements.txt
     └── README.md
 ```
@@ -163,13 +164,34 @@ O startup também cria tabelas/colunas ausentes em bancos SQLite locais, mas em 
 
 ## Docker
 
+A imagem usa build em duas etapas, roda como usuário sem privilégios (`cashya`), tem healthcheck em `/api/v1/health` e grava o SQLite em `/app/data` (volume). O `.dockerignore` impede que `.env` e bancos locais entrem na imagem.
+
+### Com Docker Compose (recomendado)
+
+```powershell
+cd cashya-api
+Copy-Item .env.example .env   # e preencha SECRET_KEY etc.
+docker compose up -d --build
+docker compose logs -f api
+```
+
+A API fica em <http://127.0.0.1:8000>. Os dados ficam no volume `cashya-data` e sobrevivem a `docker compose down` (use `docker compose down -v` para apagar).
+
+Migrações (deploy em produção ou banco vindo de versão anterior):
+
+```powershell
+docker compose run --rm api alembic upgrade head
+```
+
+### Só com Docker
+
 ```powershell
 cd cashya-api
 docker build -t cashya-api .
-docker run --rm -p 8000:8000 --env-file .env -v "${PWD}\data:/app/data" cashya-api
+docker run -d --name cashya-api -p 8000:8000 --env-file .env -e DATABASE_URL=sqlite:////app/data/cashya.db -v cashya-data:/app/data cashya-api
 ```
 
-Para persistir o SQLite no container use `DATABASE_URL=sqlite:///./data/cashya.db`.
+> No Android Emulator a API continua em `http://10.0.2.2:8000`; em aparelho físico use o IP da máquina na rede local.
 
 ## Integração com o aplicativo mobile
 
