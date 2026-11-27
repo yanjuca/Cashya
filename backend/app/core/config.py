@@ -26,6 +26,19 @@ class Settings(BaseSettings):
     request_signature_max_skew_seconds: int = 300
     min_client_version: str = ""  # e.g. "1.2.0"; requests from older X-Client-Version are refused
     hsts_enabled: bool = False  # only when served over HTTPS
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "Cashya"
+    smtp_starttls: bool = True
+    smtp_use_ssl: bool = False
+    email_schedule_hour_utc: int = 12
+    monthly_report_prompt: str = (
+        "Congratulations on another month of tracking your finances with Cashya. "
+        "Review your pending expenses and card limits to stay on top of your budget."
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -65,6 +78,28 @@ class Settings(BaseSettings):
             raise ValueError("REQUEST_SIGNING_SECRET must contain at least 32 characters when set")
         return value
 
+    @field_validator("email_schedule_hour_utc")
+    @classmethod
+    def validate_email_schedule_hour(cls, value: int) -> int:
+        if not 0 <= value <= 23:
+            raise ValueError("EMAIL_SCHEDULE_HOUR_UTC must be between 0 and 23")
+        return value
+
+    @field_validator("smtp_port")
+    @classmethod
+    def validate_smtp_port(cls, value: int) -> int:
+        if not 1 <= value <= 65535:
+            raise ValueError("SMTP_PORT must be between 1 and 65535")
+        return value
+
+    @field_validator("smtp_password")
+    @classmethod
+    def validate_smtp_credentials(cls, value: str, info) -> str:
+        username = info.data.get("smtp_username", "")
+        if bool(username) != bool(value):
+            raise ValueError("SMTP_USERNAME and SMTP_PASSWORD must either both be set or both be empty")
+        return value
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -76,6 +111,10 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.smtp_host.strip() and self.smtp_from_email.strip())
 
 
 @lru_cache

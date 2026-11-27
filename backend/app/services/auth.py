@@ -1,8 +1,12 @@
-from datetime import datetime, timezone
+import hashlib
+import hmac
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     generate_refresh_token,
@@ -12,6 +16,7 @@ from app.core.security import (
     utcnow,
     verify_password,
 )
+from app.models.email_challenge import EmailChallenge
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import LoginRequest, PasswordChangeRequest, RegisterRequest, TokenPair, UserUpdate
@@ -23,6 +28,108 @@ class AuthError(Exception):
     def __init__(self, message: str, status_code: int = 400):
         super().__init__(message)
         self.status_code = status_code
+
+
+def create_email_challenge(db: Session, user: User, purpose: str) -> str:
+    now = utcnow()
+    db.execute(
+        update(EmailChallenge)
+        .where(
+            EmailChallenge.user_id == user.id,
+            EmailChallenge.purpose == purpose,
+            EmailChallenge.used_at.is_(None),
+        )
+        .values(used_at=now)
+    )
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    code_hash = hmac.new(settings.secret_key.encode(), code.encode(), hashlib.sha256).hexdigest()
+    db.add(
+        EmailChallenge(
+            user_id=user.id,
+            purpose=purpose,
+            code_hash=code_hash,
+            expires_at=now + timedelta(minutes=15),
+        )
+    )
+    db.commit()
+    return code
+
+
+def _consume_email_challenge(db: Session, user: User, purpose: str, code: str) -> EmailChallenge:
+    challenge = db.scalar(
+        select(EmailChallenge)
+        .where(EmailChallenge.user_id == user.id, EmailChallenge.purpose == purpose)
+        .order_by(EmailChallenge.created_at.desc())
+        .limit(1)
+    )
+    now = utcnow()
+    if challenge is None or challenge.used_at is not None or challenge.failed_attempts >= 5:
+        raise AuthError("Invalid or expired code", 400)
+    expires_at = challenge.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= now:
+        raise AuthError("Invalid or expired code", 400)
+
+    code_hash = hmac.new(settings.secret_key.encode(), code.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(challenge.code_hash, code_hash):
+        values: dict[str, int | datetime] = {"failed_attempts": challenge.failed_attempts + 1}
+        if challenge.failed_attempts + 1 >= 5:
+            values["used_at"] = now
+        updated = db.execute(
+            update(EmailChallenge)
+            .where(
+                EmailChallenge.id == challenge.id,
+                EmailChallenge.used_at.is_(None),
+                EmailChallenge.failed_attempts == challenge.failed_attempts,
+            )
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        if updated.rowcount != 1:
+            db.rollback()
+            raise AuthError("Invalid or expired code", 400)
+        db.commit()
+        raise AuthError("Invalid or expired code", 400)
+
+    updated = db.execute(
+        update(EmailChallenge)
+        .where(
+            EmailChallenge.id == challenge.id,
+            EmailChallenge.used_at.is_(None),
+            EmailChallenge.failed_attempts == challenge.failed_attempts,
+            EmailChallenge.expires_at > now,
+        )
+        .values(used_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    if updated.rowcount != 1:
+        db.rollback()
+        raise AuthError("Invalid or expired code", 400)
+    return challenge
+
+
+def verify_email_address(db: Session, user: User, code: str) -> None:
+    _consume_email_challenge(db, user, "verify_email", code)
+    user.email_verified = True
+    db.commit()
+
+
+def reset_password_with_code(db: Session, email: str, code: str, new_password: str) -> User:
+    user = find_user_by_email(db, email)
+    if user is None:
+        raise AuthError("Invalid or expired code", 400)
+    _consume_email_challenge(db, user, "password_reset", code)
+    user.password_hash = hash_password(new_password)
+    user.email_verified = True
+    user.updated_at = utcnow()
+    db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=utcnow())
+    )
+    db.commit()
+    return user
 
 
 def find_user_by_email(db: Session, email: str) -> User | None:
@@ -105,6 +212,7 @@ def update_profile(db: Session, user: User, data: UserUpdate) -> User:
             if existing and existing.id != user.id:
                 raise AuthError("An account with this email already exists", 409)
             user.email = new_email
+            user.email_verified = False
     if "name" in values and values["name"] is not None:
         user.name = values["name"].strip()
     if "avatar_url" in values:
