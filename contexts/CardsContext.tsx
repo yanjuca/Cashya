@@ -1,5 +1,6 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { StorageService } from '../services/storage';
+import { SyncEvent, SyncService } from '../services/sync';
 import { CreditCard } from '../types';
 
 export { CreditCard };
@@ -46,6 +47,8 @@ export function CardsProvider({ children }: { children: ReactNode }) {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Latest list for async callbacks (sync events) that would otherwise see a stale `cards`.
+  const cardsRef = useRef<CreditCard[]>([]);
 
   useEffect(() => {
     loadCards();
@@ -54,44 +57,66 @@ export function CardsProvider({ children }: { children: ReactNode }) {
   const loadCards = async () => {
     try {
       const data = await StorageService.getCards();
-      setCards(data || []);
+      cardsRef.current = data || [];
+      setCards(cardsRef.current);
     } catch (error) {
       console.error('Error loading cards:', error);
+      cardsRef.current = [];
       setCards([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveAndSetCards = async (newCards: CreditCard[]) => {
+  const writeCards = async (newCards: CreditCard[]) => {
+    cardsRef.current = newCards;
+    setCards(newCards);
+    // Keep the carousel on a card that still exists (a card can vanish locally or through sync).
+    setActiveCardIndex((index) => (index >= newCards.length ? Math.max(0, newCards.length - 1) : index));
     try {
       await StorageService.saveCards(newCards);
-      setCards(newCards);
     } catch (error) {
       console.error('Error saving cards:', error);
     }
   };
+
+  const saveAndSetCards = async (newCards: CreditCard[]) => {
+    SyncService.recordCards(cardsRef.current, newCards).catch((error) => console.error('Error queueing sync:', error));
+    await writeCards(newCards);
+  };
+
+  useEffect(() => {
+    return SyncService.subscribe((event: SyncEvent) => {
+      if (event.type === 'reset') {
+        writeCards([]);
+        return;
+      }
+      const { upserted, deletedIds } = event.cards;
+      if (upserted.length + deletedIds.length === 0) return;
+      const removed = new Set(deletedIds);
+      const incoming = new Map(upserted.map((c) => [c.id, c]));
+      const kept = cardsRef.current.filter((c) => !removed.has(c.id)).map((c) => incoming.get(c.id) ?? c);
+      const known = new Set(kept.map((c) => c.id));
+      // Changes that came from the server are stored without being queued back to it.
+      writeCards([...kept, ...upserted.filter((c) => !known.has(c.id))]);
+    });
+    // writeCards only touches refs and state setters, so the first render's copy stays valid.
+  }, []);
 
   const addCard = async (card: Omit<CreditCard, 'id'>) => {
     const newCard: CreditCard = {
       ...card,
       id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
     };
-    const newCards = [...cards, newCard];
-    await saveAndSetCards(newCards);
+    await saveAndSetCards([...cardsRef.current, newCard]);
   };
 
   const updateCard = async (id: string, updated: Partial<CreditCard>) => {
-    const newCards = cards.map((c) => (c.id === id ? { ...c, ...updated } : c));
-    await saveAndSetCards(newCards);
+    await saveAndSetCards(cardsRef.current.map((c) => (c.id === id ? { ...c, ...updated } : c)));
   };
 
   const removeCard = async (id: string) => {
-    const newCards = cards.filter((c) => c.id !== id);
-    await saveAndSetCards(newCards);
-    if (activeCardIndex >= newCards.length) {
-      setActiveCardIndex(Math.max(0, newCards.length - 1));
-    }
+    await saveAndSetCards(cardsRef.current.filter((c) => c.id !== id));
   };
 
   const reloadCards = async () => {

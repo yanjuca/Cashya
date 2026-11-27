@@ -48,7 +48,8 @@
         {
           "faceIDPermission": "Allow Cashya to use Face ID to unlock the app."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

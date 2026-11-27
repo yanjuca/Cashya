@@ -1,6 +1,7 @@
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, LayoutAnimation, Platform } from 'react-native';
 import { StorageService } from '../services/storage';
+import { SyncEvent, SyncService } from '../services/sync';
 import { Expense } from '../types';
 import {
   dropFutureCopies,
@@ -57,6 +58,7 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
       const merged = withRecurring(data);
       if (merged.length !== data.length) {
         await StorageService.saveExpenses(merged);
+        await SyncService.recordExpenses(data, merged);
       }
       expensesRef.current = merged;
       setExpenses(merged);
@@ -67,10 +69,16 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
     }
   };
 
-  const saveAndSetExpenses = async (newExpenses: Expense[]) => {
+  /**
+   * Single write path for the list. `base` is what the change is measured against for cloud sync: by default the
+   * current list (a user edit); for server changes it is the server's version, so only local additions such as
+   * generated recurring copies are sent back.
+   */
+  const saveAndSetExpenses = async (newExpenses: Expense[], base: Expense[] = expensesRef.current) => {
     try {
       const finalList = withRecurring(newExpenses);
       expensesRef.current = finalList;
+      SyncService.recordExpenses(base, finalList).catch((error) => console.error('Error queueing sync:', error));
       if (Platform.OS !== 'web') {
         LayoutAnimation.configureNext({
           duration: 320,
@@ -94,6 +102,32 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
       console.error('Error saving expenses:', error);
     }
   };
+
+  useEffect(() => {
+    return SyncService.subscribe((event: SyncEvent) => {
+      if (event.type === 'reset') {
+        // Another account signed in on this device: its data comes from the server.
+        expensesRef.current = [];
+        setExpenses([]);
+        StorageService.saveExpenses([]).catch((error) => console.error('Error clearing expenses:', error));
+        return;
+      }
+      const { upserted, deletedIds, clearCardIds } = event.expenses;
+      if (upserted.length + deletedIds.length + clearCardIds.length === 0) return;
+      // Server changes are applied as-is (not queued back); dropping a vanished card is a local edit that is.
+      const removed = new Set(deletedIds);
+      const incoming = new Map(upserted.map((e) => [e.id, e]));
+      const kept = expensesRef.current
+        .filter((e) => !removed.has(e.id))
+        .map((e) => incoming.get(e.id) ?? e);
+      const known = new Set(kept.map((e) => e.id));
+      const fromServer = [...upserted.filter((e) => !known.has(e.id)), ...kept];
+      const clear = new Set(clearCardIds);
+      const next = clear.size ? fromServer.map((e) => (clear.has(e.id) ? { ...e, cardId: undefined } : e)) : fromServer;
+      saveAndSetExpenses(next, fromServer);
+    });
+    // saveAndSetExpenses only touches refs and state setters, so the first render's copy stays valid.
+  }, []);
 
   const addExpense = async (expense: Omit<Expense, 'id'>) => {
     const newExpense: Expense = {
