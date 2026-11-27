@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Cashya",
+    "name": "CASH",
     "slug": "Cashya",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -46,7 +46,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Cashya to use Face ID to unlock the app."
+          "faceIDPermission": "Allow CASH to use Face ID to unlock the app."
         }
       ]
     ],

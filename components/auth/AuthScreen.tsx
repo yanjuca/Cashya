@@ -74,12 +74,12 @@ const COPY: Record<AuthMode, { title: string; subtitle: string; eyebrow: string 
   login: {
     eyebrow: 'LOG IN',
     title: 'welcome back',
-    subtitle: 'Log in to your Cashya account. It is optional, you can skip it anytime.',
+    subtitle: 'Log in to your CASH account. It is optional, you can skip it anytime.',
   },
   register: {
     eyebrow: 'CREATE ACCOUNT',
-    title: 'join cashya',
-    subtitle: 'Optional. Cashya keeps working offline without an account.',
+    title: 'join cash',
+    subtitle: 'Optional. CASH keeps working offline without an account.',
   },
   forgot: {
     eyebrow: 'FORGOT PASSWORD',
@@ -395,7 +395,7 @@ function AuthForm() {
     if (biometricAvailable && !biometricAsked) {
       showAlert({
         title: `Enable ${biometricLabel}?`,
-        message: `Use ${biometricLabel} to unlock Cashya next time instead of typing your password.`,
+        message: `Use ${biometricLabel} to unlock CASH next time instead of typing your password.`,
         type: 'info',
         icon: biometricIcon,
         buttons: [
@@ -453,7 +453,7 @@ function AuthForm() {
     triggerSuccessHaptic();
     showAlert({
       title: 'Account Created',
-      message: 'Your account is ready. Cashya will ask you to log in the next time you open the app.',
+      message: 'Your account is ready. CASH will ask you to log in the next time you open the app.',
       type: 'success',
     });
   };
@@ -566,7 +566,7 @@ function AuthForm() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Text style={styles.brand}>cashya</Text>
+              <Text style={styles.brand}>cash</Text>
               <Text style={styles.eyebrow}>{copy.eyebrow}</Text>
               <Text style={styles.title}>{copy.title}</Text>
               <Text style={styles.subtitle}>{copy.subtitle}</Text>

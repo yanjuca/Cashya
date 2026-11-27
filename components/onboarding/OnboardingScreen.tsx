@@ -41,7 +41,7 @@ const SLIDES: Slide[] = [
   {
     key: 'welcome',
     icon: 'wallet-outline',
-    title: 'WELCOME TO CASHYA',
+    title: 'WELCOME TO CASH',
     body: 'A private place to keep track of what you spend. Start right away, no sign-up needed.',
     tips: [
       { icon: 'lock-closed-outline', text: 'Everything is stored on your device' },
@@ -86,7 +86,7 @@ const SLIDES: Slide[] = [
     key: 'settings',
     icon: 'settings-outline',
     title: 'MAKE IT YOURS',
-    body: 'Fine-tune Cashya from the Settings tab.',
+    body: 'Fine-tune CASH from the Settings tab.',
     tips: [
       { icon: 'color-palette-outline', text: 'Pick a theme and an accent color' },
       { icon: 'share-outline', text: 'Export a backup and restore it any time' },
@@ -181,7 +181,7 @@ export default function OnboardingScreen() {
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.topBar}>
-          <Text style={styles.brand}>cashya</Text>
+          <Text style={styles.brand}>cash</Text>
           <TouchableOpacity
             onPress={handleSkip}
             activeOpacity={0.7}
