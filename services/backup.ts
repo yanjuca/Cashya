@@ -1,6 +1,7 @@
 import { Share } from 'react-native';
 import { customAlert } from '../contexts/AlertContext';
 import { BackupData, CreditCard, Expense } from '../types';
+import { normalizeCardType } from './api/mappers';
 import { StorageService } from './storage';
 
 export const BackupService = {
@@ -48,11 +49,15 @@ export const BackupService = {
   },
 
   /**
-   * Validates and restores data from a JSON string
+   * Validates and parses a backup JSON string. Nothing is written here: the caller applies `data` through the
+   * Expenses/Cards contexts so the restore is also queued for cloud sync.
    */
-  async restoreFromJson(
-    jsonString: string
-  ): Promise<{ success: boolean; message: string; count?: { expenses: number; cards: number } }> {
+  async restoreFromJson(jsonString: string): Promise<{
+    success: boolean;
+    message: string;
+    count?: { expenses: number; cards: number };
+    data?: { expenses: Expense[]; cards: CreditCard[] };
+  }> {
     try {
       const parsed = JSON.parse(jsonString);
 
@@ -76,6 +81,11 @@ export const BackupService = {
         cardId: e.cardId,
         recurring: Boolean(e.recurring),
         recurringMonths: Number(e.recurringMonths) > 0 ? Number(e.recurringMonths) : undefined,
+        // Without these two, restored monthly copies lose their series and skipped months come back.
+        recurringSourceId: typeof e.recurringSourceId === 'string' && e.recurringSourceId ? e.recurringSourceId : undefined,
+        skippedMonths: Array.isArray(e.skippedMonths)
+          ? e.skippedMonths.filter((m: unknown): m is string => typeof m === 'string')
+          : undefined,
       }));
 
       // Sanitize cards (if any)
@@ -84,7 +94,7 @@ export const BackupService = {
             id: c.id || Date.now().toString() + Math.random().toString(36).substring(2, 7),
             holderName: String(c.holderName || 'USER').toUpperCase(),
             brand: c.brand || 'generic',
-            type: c.type || 'Credit',
+            type: normalizeCardType(c.type),
             lastDigits: String(c.lastDigits || '0000'),
             expiryDate: String(c.expiryDate || '12/99'),
             limit: Number(c.limit) || 1000,
@@ -92,14 +102,10 @@ export const BackupService = {
           }))
         : [];
 
-      await StorageService.saveExpenses(restoredExpenses);
-      if (restoredCards.length > 0) {
-        await StorageService.saveCards(restoredCards);
-      }
-
       return {
         success: true,
         message: 'Backup restored successfully!',
+        data: { expenses: restoredExpenses, cards: restoredCards },
         count: {
           expenses: restoredExpenses.length,
           cards: restoredCards.length,

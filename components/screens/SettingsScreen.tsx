@@ -32,8 +32,8 @@ export interface SettingsScreenProps {
 
 export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
   const { showAlert } = useAlert();
-  const { cards, removeCard, reloadCards } = useCards();
-  const { reloadExpenses, resetExpenses } = useExpenses();
+  const { cards, removeCard } = useCards();
+  const { resetExpenses } = useExpenses();
   const { resetCards } = useCards();
   const { colors, themeMode, accentColor, setThemeMode, setAccentColor, accentList } = useTheme();
   const {
@@ -182,9 +182,12 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
     }
 
     const result = await BackupService.restoreFromJson(restoreJsonInput.trim());
-    if (result.success) {
-      await reloadExpenses();
-      await reloadCards();
+    if (result.success && result.data) {
+      // Written through the contexts so the restored data is also sent to the cloud when signed in.
+      await resetExpenses(result.data.expenses);
+      if (result.data.cards.length > 0) {
+        await resetCards(result.data.cards);
+      }
       setShowRestoreModal(false);
       setRestoreJsonInput('');
       showAlert({
