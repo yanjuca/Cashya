@@ -1,9 +1,7 @@
-/**
- * Core domain types and contracts for Cashya
- */
-
 export type CardBrand = 'visa' | 'mastercard' | 'elo' | 'generic';
-export type CardType = 'Credit' | 'Debit' | 'Crédito' | 'Débito';
+// Single spelling shared with the API. Older builds stored 'Crédito'/'Débito'; those are converted on read
+// (StorageService.getCards, BackupService.restoreFromJson) with normalizeCardType.
+export type CardType = 'Credit' | 'Debit';
 
 export interface CreditCard {
   id: string;
@@ -24,6 +22,10 @@ export interface Expense {
   date: Date;
   tags: string[];
   paid: boolean;
+  recurring?: boolean;
+  recurringMonths?: number;
+  recurringSourceId?: string;
+  skippedMonths?: string[];
   source?: 'manual' | 'notification' | 'import';
   cardId?: string;
 }
@@ -46,6 +48,10 @@ export interface BackupData {
     date: string;
     tags: string[];
     paid: boolean;
+    recurring?: boolean;
+    recurringMonths?: number;
+    recurringSourceId?: string;
+    skippedMonths?: string[];
     source?: 'manual' | 'notification' | 'import';
     cardId?: string;
   }[];

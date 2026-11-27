@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    image: cashya-api:latest
+    container_name: cashya-api
+    env_file: .env
+    environment:
+      # Sobrescreve o DATABASE_URL do .env para gravar o SQLite no volume persistente.
+      DATABASE_URL: sqlite:////app/data/cashya.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - cashya-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  cashya-data:

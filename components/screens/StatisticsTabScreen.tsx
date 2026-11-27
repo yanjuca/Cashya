@@ -1,19 +1,32 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import {
   DimensionValue,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useExpenses } from '../../contexts/ExpensesContext';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
+import Text from '../ui/AppText';
+import { useLanguage } from '../../contexts/LanguageContext';
 
-export default function StatisticsTabScreen() {
+export interface StatisticsTabScreenProps {
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
+}
+
+export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenProps = {}) {
+  const { locale } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const androidBottomInset = Platform.OS === 'android' ? insets.bottom : 0;
   const { expenses } = useExpenses();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const stats = useMemo(() => {
     const total = expenses.reduce((acc, e) => acc + e.amount, 0);
@@ -50,7 +63,7 @@ export default function StatisticsTabScreen() {
     // Monthly trend
     const byMonth: { [key: string]: number } = {};
     expenses.forEach((expense) => {
-      const monthKey = expense.date.toLocaleDateString('en-US', {
+      const monthKey = expense.date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'short',
       });
@@ -74,7 +87,7 @@ export default function StatisticsTabScreen() {
         .slice(0, 6),
       averageExpense: total / (expenses.length || 1),
     };
-  }, [expenses]);
+  }, [expenses, locale]);
 
   const getPercentage = (value: number, total: number) => {
     return total > 0 ? ((value / total) * 100).toFixed(1) : '0';
@@ -83,64 +96,79 @@ export default function StatisticsTabScreen() {
   const highestMonthTotal = stats.byMonth.reduce((max, item) => Math.max(max, item.total), 0) || 1;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>ANALYTICS</Text>
-        <Text style={styles.subtitle}>Consolidated financial report</Text>
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle={colors.statusBar} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 140 + androidBottomInset }]}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
+        {/* Empty State */}
+        {expenses.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="bar-chart-outline" size={44} color={colors.textMuted} />
+            <Text style={styles.emptyTitle}>NO DATA AVAILABLE</Text>
+            <Text style={styles.emptySubtext}>Add expenses to see your statistics breakdown</Text>
+          </View>
+        )}
+
         {/* Overview Grid */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>OVERVIEW</Text>
-          <View style={styles.cardsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Recorded</Text>
-              <Text style={styles.statValue}>{formatCurrency(stats.total)}</Text>
-              <Text style={styles.statSubtext}>
-                {stats.count} {stats.count === 1 ? 'expense' : 'expenses'}
-              </Text>
+        {expenses.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>OVERVIEW</Text>
+            <View style={styles.cardsRow}>
+              <View style={styles.statCard}>
+                <View style={styles.statLabelRow}>
+                  <Text style={styles.statLabel}>Total Recorded</Text>
+                </View>
+                <Text style={styles.statValue}>{formatCurrency(stats.total, '$', locale)}</Text>
+                <Text style={styles.statSubtext}>
+                  {stats.count} {stats.count === 1 ? 'expense' : 'expenses'}
+                </Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={styles.statLabelRow}>
+                  <Text style={styles.statLabel}>Total Paid</Text>
+                  <View style={[styles.statusDot, styles.statusDotPaid]} />
+                </View>
+                <Text style={styles.statValue}>
+                  {formatCurrency(stats.paid, '$', locale)}
+                </Text>
+                <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% of total</Text>
+              </View>
             </View>
 
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Paid</Text>
-              <Text style={[styles.statValue, { color: COLORS.success }]}>
-                {formatCurrency(stats.paid)}
-              </Text>
-              <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% of total</Text>
+            <View style={styles.cardsRow}>
+              <View style={styles.statCard}>
+                <View style={styles.statLabelRow}>
+                  <Text style={styles.statLabel}>Pending</Text>
+                  <View style={[styles.statusDot, styles.statusDotPending]} />
+                </View>
+                <Text style={styles.statValue}>
+                  {formatCurrency(stats.pending, '$', locale)}
+                </Text>
+                <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% of total</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={styles.statLabelRow}>
+                  <Text style={styles.statLabel}>Average per Entry</Text>
+                </View>
+                <Text style={styles.statValue}>{formatCurrency(stats.averageExpense, '$', locale)}</Text>
+                <Text style={styles.statSubtext}>per expense</Text>
+              </View>
             </View>
           </View>
-
-          <View style={styles.cardsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Pending</Text>
-              <Text style={[styles.statValue, { color: COLORS.error }]}>
-                {formatCurrency(stats.pending)}
-              </Text>
-              <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% of total</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Average per Expense</Text>
-              <Text style={styles.statValue}>{formatCurrency(stats.averageExpense)}</Text>
-              <Text style={styles.statSubtext}>per entry</Text>
-            </View>
-          </View>
-        </View>
+        )}
 
         {/* Breakdown by Person */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BY PERSON</Text>
-          {stats.byPerson.length === 0 ? (
-            <Text style={styles.emptyText}>No expenses recorded</Text>
-          ) : (
-            stats.byPerson.map((item, index) => (
+        {stats.byPerson.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>BY PERSON</Text>
+            {stats.byPerson.map((item, index) => (
               <View key={index} style={styles.listItem}>
                 <View style={styles.listItemLeft}>
                   <Text style={styles.listItemName}>{item.name}</Text>
@@ -149,25 +177,26 @@ export default function StatisticsTabScreen() {
                   </Text>
                 </View>
                 <View style={styles.listItemRight}>
-                  <Text style={styles.listItemTotal}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.listItemTotal}>{formatCurrency(item.total, '$', locale)}</Text>
                   {item.pending > 0 && (
-                    <Text style={styles.listItemPending}>
-                      {formatCurrency(item.pending)} pending
-                    </Text>
+                    <View style={styles.pendingBadgeRow}>
+                      <View style={[styles.statusDotMini, { backgroundColor: colors.primary }]} />
+                      <Text style={styles.listItemPending}>
+                        {formatCurrency(item.pending, '$', locale)} pending
+                      </Text>
+                    </View>
                   )}
                 </View>
               </View>
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Breakdown by Category / Tag */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BY CATEGORY</Text>
-          {stats.byTag.length === 0 ? (
-            <Text style={styles.emptyText}>No categories recorded</Text>
-          ) : (
-            stats.byTag.map((item, index) => (
+        {stats.byTag.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>BY CATEGORY</Text>
+            {stats.byTag.map((item, index) => (
               <View key={index} style={styles.listItem}>
                 <View style={styles.listItemLeft}>
                   <View style={styles.tagBadge}>
@@ -178,23 +207,21 @@ export default function StatisticsTabScreen() {
                   </Text>
                 </View>
                 <View style={styles.listItemRight}>
-                  <Text style={styles.listItemTotal}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.listItemTotal}>{formatCurrency(item.total, '$', locale)}</Text>
                   <Text style={styles.listItemPercent}>
                     {getPercentage(item.total, stats.total)}%
                   </Text>
                 </View>
               </View>
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
 
         {/* Monthly Trend */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>RECENT MONTHS</Text>
-          {stats.byMonth.length === 0 ? (
-            <Text style={styles.emptyText}>Not enough history</Text>
-          ) : (
-            stats.byMonth.map((item, index) => {
+        {stats.byMonth.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>RECENT MONTHS</Text>
+            {stats.byMonth.map((item, index) => {
               const barWidth = `${Math.max(5, (item.total / highestMonthTotal) * 100)}%` as DimensionValue;
               return (
                 <View key={index} style={styles.trendItem}>
@@ -202,173 +229,211 @@ export default function StatisticsTabScreen() {
                   <View style={styles.trendBarContainer}>
                     <View style={[styles.trendBar, { width: barWidth }]} />
                   </View>
-                  <Text style={styles.trendValue}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.trendValue}>{formatCurrency(item.total, '$', locale)}</Text>
                 </View>
               );
-            })
-          )}
-        </View>
+            })}
+          </View>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  header: {
-    paddingHorizontal: 22,
-    paddingTop: 16,
-    paddingBottom: 14,
-  },
-  title: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 24,
-    color: '#ffffff',
-    letterSpacing: 1.5,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  cardsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#24242a',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-    fontWeight: '500',
-  },
-  statValue: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 16,
-    color: '#ffffff',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  statSubtext: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-  },
-  listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#24242a',
-  },
-  listItemLeft: {
-    flex: 1,
-  },
-  listItemName: {
-    fontSize: 15,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  listItemSubtext: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-  listItemRight: {
-    alignItems: 'flex-end',
-  },
-  listItemTotal: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 14,
-    color: '#ffffff',
-    marginBottom: 2,
-  },
-  listItemPending: {
-    fontSize: 11,
-    color: COLORS.error,
-  },
-  listItemPercent: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-  tagBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  tagBadgeText: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  trendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  trendMonth: {
-    fontFamily: FONTS.ndotCaps || FONTS.system,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    width: 60,
-  },
-  trendBarContainer: {
-    flex: 1,
-    height: 18,
-    backgroundColor: '#16161a',
-    borderRadius: 9,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#24242a',
-  },
-  trendBar: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 9,
-  },
-  trendValue: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 11,
-    color: '#ffffff',
-    width: 80,
-    textAlign: 'right',
-  },
-  emptyText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
-    paddingVertical: 14,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 140,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 80,
+    },
+    emptyTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 13,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+      marginTop: 16,
+      marginBottom: 6,
+    },
+    emptySubtext: {
+      fontFamily: FONTS.regular,
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingHorizontal: 40,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 11,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+      marginBottom: 12,
+    },
+    cardsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 10,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statLabelRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    statLabel: {
+      fontFamily: FONTS.medium,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    statusDot: {
+      width: 7,
+      height: 7,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 0.5,
+      borderColor: colors.borderLight,
+    },
+    statusDotPaid: {
+      backgroundColor: colors.success,
+    },
+    statusDotPending: {
+      backgroundColor: colors.primary,
+    },
+    statValue: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 16,
+      color: colors.text,
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
+    statSubtext: {
+      fontFamily: FONTS.regular,
+      fontSize: 10,
+      color: colors.textSecondary,
+    },
+    listItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 14,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    listItemLeft: {
+      flex: 1,
+    },
+    listItemName: {
+      fontFamily: FONTS.medium,
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    listItemSubtext: {
+      fontFamily: FONTS.regular,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    listItemRight: {
+      alignItems: 'flex-end',
+    },
+    listItemTotal: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 14,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    pendingBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 2,
+    },
+    statusDotMini: {
+      width: 6,
+      height: 6,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 0.5,
+      borderColor: colors.borderLight,
+    },
+    listItemPending: {
+      fontFamily: FONTS.medium,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    listItemPercent: {
+      fontFamily: FONTS.medium,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    tagBadge: {
+      backgroundColor: colors.cardBackgroundLight,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: BORDER_RADIUS.xs,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      alignSelf: 'flex-start',
+      marginBottom: 4,
+    },
+    tagBadgeText: {
+      fontFamily: FONTS.medium,
+      fontSize: 12,
+      color: colors.text,
+    },
+    trendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+      gap: 8,
+    },
+    trendMonth: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 11,
+      color: colors.textSecondary,
+      width: 60,
+    },
+    trendBarContainer: {
+      flex: 1,
+      height: 18,
+      backgroundColor: colors.cardBackgroundLight,
+      borderRadius: BORDER_RADIUS.full,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    trendBar: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.full,
+    },
+    trendValue: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 11,
+      color: colors.text,
+      width: 80,
+      textAlign: 'right',
+    },
+  });
+}

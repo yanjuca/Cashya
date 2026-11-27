@@ -91,8 +91,10 @@ The app is structured into **4 main navigation tabs + Floating Action Button (FA
 
 Cashya uses a **Pragmatic Feature-Based Modular Architecture**, combining clear separation of concerns with TypeScript strict typing and agile development.
 
-> 📖 **Check out the full architecture and onboarding guide**:  
-> 👉 [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md)
+> 📖 **Check out the technical documentation**:  
+> 👉 [**Frontend Architecture Guide**](docs/ARCHITECTURE.md)  
+> 👉 [**Design System & UI Tokens Guide**](docs/DESIGN_SYSTEM.md)  
+> 👉 [**Backend & API Specification Guide**](docs/BACKEND_SPEC.md)
 
 ---
 
@@ -100,6 +102,7 @@ Cashya uses a **Pragmatic Feature-Based Modular Architecture**, combining clear 
 
 ```
 Cashya/
+├── backend/                          # cashya-api (FastAPI): app/, tests/, migrations/, Dockerfile
 ├── app/                              # Expo Router v6 file-based routes
 │   ├── (tabs)/                       # Tab navigation routes
 │   │   ├── _layout.tsx               # Nothing OS styled bottom tab bar
@@ -124,6 +127,9 @@ Cashya/
 │   └── CardsContext.tsx              # Card wallet state & limits
 │
 ├── services/                         # Infrastructure & I/O
+│   ├── api/                          # cashya-api client, session tokens, DTO mappers
+│   ├── sync.ts                       # Offline outbox synced through /sync/batch
+│   ├── auth.ts                       # Register / login / password reset via the API
 │   ├── storage.ts                    # Typed AsyncStorage wrapper
 │   └── backup.ts                     # Native JSON export & import
 │
@@ -176,23 +182,75 @@ export interface CreditCard {
 
 ## 🏁 Getting Started
 
-### Prerequisites
-- [**Node.js**](https://nodejs.org/) (v18 or higher)
-- Package manager: **npm** or **yarn**
-- [**Expo Go**](https://expo.dev/go) app installed on your physical smartphone (Android or iOS).
+This repository holds the whole stack:
 
-### Installation
+| Folder | What it is |
+| :--- | :--- |
+| `/` (root) | Mobile app — Expo / React Native |
+| `backend/` | API — FastAPI + SQLAlchemy (`cashya-api`), with its own [README](backend/README.md) |
+
+The app keeps working offline. When you create an account or log in, it syncs your expenses and cards with the API (`POST /api/v1/sync/batch`).
+
+### Prerequisites
+- [**Node.js**](https://nodejs.org/) (v20 or higher) and **npm**
+- [**Docker Desktop**](https://www.docker.com/products/docker-desktop/) to run the API — or **Python 3.12+** to run it without Docker
+- [**Expo Go**](https://expo.dev/go) on your phone, or an Android emulator / iOS simulator
+
+### 1. Start the API
 
 ```bash
 git clone https://github.com/yanjuca/Cashya.git
-cd Cashya
-npm install
+cd Cashya/backend
+cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
+docker compose up -d --build
 ```
 
-### Running the App
+Check it at <http://localhost:8000/api/v1/health> and browse the endpoints at <http://localhost:8000/docs>.
+
+> For anything beyond local testing, replace `SECRET_KEY` in `backend/.env` with 32+ random characters.
+> Without SMTP settings, password-reset codes are printed in the API log: `docker compose logs -f api`.
+
+<details>
+<summary>Without Docker (Python)</summary>
 
 ```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+</details>
+
+### 2. Start the app
+
+```bash
+cd ..                       # back to the repository root
+npm install
 npx expo start
+```
+
+The app finds the API by itself on an **Android emulator** (`10.0.2.2:8000`), **iOS simulator** and **web** (`127.0.0.1:8000`).
+On a **physical phone**, create `.env.local` from `.env.example` and set your computer's LAN IP (same Wi-Fi, port 8000 allowed in the firewall):
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.0.10:8000
+```
+
+Restart `npx expo start` after changing it.
+
+### 3. Run the tests
+
+```bash
+# API: integration + unit tests (inside the backend virtualenv)
+cd backend
+pytest -q
+
+# App: types and lint (repository root)
+cd ..
+npx tsc --noEmit
+npm run lint
 ```
 
 In the terminal or open web interface:

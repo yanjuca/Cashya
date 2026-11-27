@@ -1,88 +1,176 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useMemo, useState } from 'react';
 import {
-  Alert,
-  Modal,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { DEFAULT_CARDS, useCards } from '../../contexts/CardsContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAlert } from '../../contexts/AlertContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { BackupService } from '../../services/backup';
 import { StorageService } from '../../services/storage';
-import { BORDER_RADIUS, COLORS, FONTS } from '../../theme';
-import { CardBrand, CardType, CreditCard } from '../../types';
+import { BORDER_RADIUS, FONTS, ThemeColors, ThemeMode } from '../../theme';
+import { CreditCard } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 
-export default function SettingsScreen() {
-  const { cards, addCard, removeCard, reloadCards, resetCards } = useCards();
-  const { expenses, reloadExpenses, resetExpenses } = useExpenses();
+import AddCardModal from '../cards/AddCardModal';
+import BottomSheetModal from '../ui/BottomSheetModal';
+import ToggleRow from '../ui/ToggleRow';
+import Text from '../ui/AppText';
+import TextInput from '../ui/AppTextInput';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { Language } from '../../i18n';
 
-  // Modal State for Add Card
+export interface SettingsScreenProps {
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
+}
+
+const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'pt', label: 'Português' },
+];
+
+export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
+  const { locale, language, setLanguage } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const { open: openOnboarding } = useOnboarding();
+  const androidBottomInset = Platform.OS === 'android' ? insets.bottom : 0;
+  const { showAlert } = useAlert();
+  const { cards, removeCard } = useCards();
+  const { resetExpenses } = useExpenses();
+  const { resetCards } = useCards();
+  const { colors, themeMode, accentColor, setThemeMode, setAccentColor, accentList } = useTheme();
+  const {
+    user,
+    hasAccount,
+    openAuth,
+    logout,
+    removeAccount,
+    biometricAvailable,
+    biometricEnabled,
+    biometricLabel,
+    biometricIcon,
+    setBiometricEnabled,
+  } = useAuth();
+
   const [showAddCardModal, setShowAddCardModal] = useState(false);
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardType, setCardType] = useState<CardType>('Credit');
-  const [cardBrand, setCardBrand] = useState<CardBrand>('visa');
-  const [cardLastDigits, setCardLastDigits] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardLimit, setCardLimit] = useState('');
 
-  // Modal State for Restore
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restoreJsonInput, setRestoreJsonInput] = useState('');
 
-  // Handle Add Card
-  const handleCreateCard = async () => {
-    if (!cardHolder.trim()) {
-      Alert.alert('Warning', 'Please enter the cardholder name.');
-      return;
-    }
-    if (cardLastDigits.trim().length !== 4) {
-      Alert.alert('Warning', 'Please enter the last 4 digits of the card.');
-      return;
-    }
-    const limitNum = parseFloat(cardLimit);
-    if (isNaN(limitNum) || limitNum <= 0) {
-      Alert.alert('Warning', 'Please enter a valid limit greater than zero.');
-      return;
-    }
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-    await addCard({
-      holderName: cardHolder.trim().toUpperCase(),
-      brand: cardBrand,
-      type: cardType,
-      lastDigits: cardLastDigits.trim(),
-      expiryDate: cardExpiry.trim() || '12/29',
-      limit: limitNum,
-      colorAccent: cardBrand === 'mastercard' ? '#ff9f0a' : COLORS.primary,
-    });
-
-    // Reset Form
-    setCardHolder('');
-    setCardLastDigits('');
-    setCardExpiry('');
-    setCardLimit('');
-    setShowAddCardModal(false);
-    Alert.alert('Success', 'New card added successfully!');
+  const triggerHaptic = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(style);
+      } catch {}
+    }
   };
 
-  // Handle Remove Card
-  const handleRemoveCard = (card: CreditCard) => {
-    if (cards.length <= 1) {
-      Alert.alert('Notice', 'You must keep at least one card registered.');
-      return;
+  const handleSelectLanguage = (next: Language) => {
+    if (next === language) return;
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {}
     }
+    setLanguage(next);
+  };
 
-    Alert.alert(
-      'Remove Card',
-      `Are you sure you want to remove the card ending in ${card.lastDigits} (${card.holderName})?`,
-      [
+  const handleSelectThemeMode = (mode: ThemeMode) => {
+    if (mode === themeMode) return;
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    setThemeMode(mode);
+  };
+
+  const handleSelectAccentColor = (colorValue: string) => {
+    if (colorValue === accentColor) return;
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setAccentColor(colorValue);
+  };
+
+  const handleOpenAuth = (mode: 'login' | 'register') => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    openAuth(mode);
+  };
+
+  const handleToggleBiometric = async (next: boolean) => {
+    triggerHaptic();
+    const ok = await setBiometricEnabled(next);
+    if (next && !ok) {
+      showAlert({
+        title: 'Not Enabled',
+        message: `We could not verify your ${biometricLabel}. Please try again.`,
+        type: 'warning',
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    showAlert({
+      title: 'Log Out',
+      message: 'You will be logged out. Your expenses and cards stay on this device.',
+      type: 'warning',
+      icon: 'log-out-outline',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: () => {
+            logout();
+          },
+        },
+      ],
+    });
+  };
+
+  const handleRemoveLogin = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    showAlert({
+      title: 'Remove Login',
+      message:
+        'Your account will be deleted from this device and Cashya will stop asking you to log in. Your expenses and cards stay on this device.',
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await removeAccount();
+            if (!result.success) {
+              showAlert({
+                title: 'Error',
+                message: result.message || 'Could not remove your account. Please try again.',
+                type: 'danger',
+              });
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleRemoveCard = (card: CreditCard) => {
+    showAlert({
+      title: 'Remove Card',
+      message: `Are you sure you want to remove the card ending in ${card.lastDigits} (${card.holderName})?`,
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
@@ -91,46 +179,61 @@ export default function SettingsScreen() {
             await removeCard(card.id);
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
-  // Handle Export Backup
   const handleExportBackup = async () => {
     const success = await BackupService.shareBackup();
     if (success) {
-      Alert.alert('Backup Exported', 'Your backup file has been generated and shared successfully!');
+      showAlert({
+        title: 'Backup Exported',
+        message: 'Your backup file has been generated and shared successfully!',
+        type: 'success',
+      });
     }
   };
 
-  // Handle Restore Backup
   const handleRestoreBackup = async () => {
     if (!restoreJsonInput.trim()) {
-      Alert.alert('Warning', 'Please paste the backup JSON content to restore.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please paste the backup JSON content to restore.',
+        type: 'warning',
+      });
       return;
     }
 
     const result = await BackupService.restoreFromJson(restoreJsonInput.trim());
-    if (result.success) {
-      await reloadExpenses();
-      await reloadCards();
+    if (result.success && result.data) {
+      // Written through the contexts so the restored data is also sent to the cloud when signed in.
+      await resetExpenses(result.data.expenses);
+      if (result.data.cards.length > 0) {
+        await resetCards(result.data.cards);
+      }
       setShowRestoreModal(false);
       setRestoreJsonInput('');
-      Alert.alert(
-        'Restore Complete',
-        `Successfully restored ${result.count?.expenses || 0} expenses and ${result.count?.cards || 0} cards.`
-      );
+      showAlert({
+        title: 'Restore Complete',
+        message: `Successfully restored ${result.count?.expenses || 0} expenses and ${result.count?.cards || 0} cards.`,
+        type: 'success',
+      });
     } else {
-      Alert.alert('Restore Error', result.message);
+      showAlert({
+        title: 'Restore Error',
+        message: result.message,
+        type: 'danger',
+      });
     }
   };
 
-  // Handle Clear All Data
   const handleClearAllData = () => {
-    Alert.alert(
-      'Reset All Data',
-      'WARNING: All expenses and cards will be permanently deleted. Do you wish to continue?',
-      [
+    showAlert({
+      title: 'Reset All Data',
+      message: 'WARNING: All expenses and cards will be permanently deleted. Do you wish to continue?',
+      type: 'danger',
+      icon: 'trash-outline',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete All',
@@ -138,29 +241,269 @@ export default function SettingsScreen() {
           onPress: async () => {
             await StorageService.clearAllData();
             await resetExpenses([]);
-            await resetCards(DEFAULT_CARDS);
-            Alert.alert('Complete', 'The database has been reset to its initial state.');
+            await resetCards([]);
+            showAlert({
+              title: 'Complete',
+              message: 'The database has been reset.',
+              type: 'success',
+            });
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
+    <View style={styles.container}>
+      <StatusBar barStyle={colors.statusBar} />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 + androidBottomInset }]}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>settings</Text>
-          <Text style={styles.headerSubtitle}>backup, cards and preferences</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+
+          <View style={styles.accountCard}>
+            {user ? (
+              <>
+                <View style={styles.accountRow}>
+                  <View style={styles.accountAvatar}>
+                    <Text style={styles.accountAvatarText}>
+                      {(user.name.trim().charAt(0) || '?').toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName} numberOfLines={1}>
+                      {user.name}
+                    </Text>
+                    <Text style={styles.accountEmail} numberOfLines={1}>
+                      {user.email}
+                    </Text>
+                  </View>
+                  <View style={styles.accountStatus}>
+                    <Text style={styles.accountStatusText}>LOGGED IN</Text>
+                  </View>
+                </View>
+
+                {biometricAvailable && (
+                  <ToggleRow
+                    icon={biometricIcon}
+                    title={`Unlock with ${biometricLabel}`}
+                    subtitle="Skip typing your password when opening Cashya"
+                    value={biometricEnabled}
+                    onChange={handleToggleBiometric}
+                    style={styles.biometricToggle}
+                  />
+                )}
+
+                <View style={styles.accountActions}>
+                  <TouchableOpacity
+                    style={styles.accountBtnSecondaryFull}
+                    onPress={handleLogout}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="log-out-outline" size={18} color={colors.text} />
+                    <Text style={styles.backupBtnSecondaryText}>Log Out</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.accountBtnPrimaryFull}
+                    onPress={handleRemoveLogin}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.primaryText} />
+                    <Text style={styles.backupBtnPrimaryText}>Remove Login</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.accountIntro}>
+                  <View style={styles.accountIconBadge}>
+                    <Ionicons name="person-outline" size={20} color={colors.text} />
+                  </View>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName}>
+                      {hasAccount ? 'You are not logged in' : 'Logging in is optional'}
+                    </Text>
+                    <Text style={styles.accountEmail}>
+                      {hasAccount ? 'Log in to your Cashya account.' : 'Cashya works fully offline.'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.backupCardDesc}>
+                  You can use Cashya with or without an account. Create one if you want to log in
+                  whenever you open the app.
+                </Text>
+
+                <View style={styles.backupBtnRow}>
+                  <TouchableOpacity
+                    style={hasAccount ? styles.backupBtnSecondary : styles.backupBtnPrimary}
+                    onPress={() => handleOpenAuth('register')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="person-add-outline"
+                      size={18}
+                      color={hasAccount ? colors.text : colors.primaryText}
+                    />
+                    <Text
+                      style={hasAccount ? styles.backupBtnSecondaryText : styles.backupBtnPrimaryText}
+                    >
+                      Create Account
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={hasAccount ? styles.backupBtnPrimary : styles.backupBtnSecondary}
+                    onPress={() => handleOpenAuth('login')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="log-in-outline"
+                      size={18}
+                      color={hasAccount ? colors.primaryText : colors.text}
+                    />
+                    <Text
+                      style={hasAccount ? styles.backupBtnPrimaryText : styles.backupBtnSecondaryText}
+                    >
+                      Log In
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
         </View>
 
-        {/* SECTION 1: CARDS */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>APPEARANCE</Text>
+
+          <View style={styles.appearanceCard}>
+            <Text style={styles.subSectionTitle}>THEME MODE</Text>
+            <View style={styles.themeModeRow}>
+              <TouchableOpacity
+                style={[
+                  styles.themeModeBtn,
+                  themeMode === 'dark' && styles.themeModeBtnActive,
+                ]}
+                onPress={() => handleSelectThemeMode('dark')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="moon"
+                  size={16}
+                  color={themeMode === 'dark' ? colors.primaryText : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.themeModeBtnText,
+                    themeMode === 'dark' && styles.themeModeBtnTextActive,
+                  ]}
+                >
+                  DARK
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.themeModeBtn,
+                  themeMode === 'light' && styles.themeModeBtnActive,
+                ]}
+                onPress={() => handleSelectThemeMode('light')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="sunny"
+                  size={16}
+                  color={themeMode === 'light' ? colors.primaryText : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.themeModeBtnText,
+                    themeMode === 'light' && styles.themeModeBtnTextActive,
+                  ]}
+                >
+                  LIGHT
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.accentDivider} />
+            <Text style={styles.subSectionTitle}>ACCENT COLOR</Text>
+            <View style={styles.accentColorsGrid}>
+              {accentList.map((item) => {
+                const isSelected = accentColor.toUpperCase() === item.value.toUpperCase();
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.accentItem}
+                    onPress={() => handleSelectAccentColor(item.value)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.accentCircleOuter,
+                        isSelected && { borderColor: item.value },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.accentCircle,
+                          { backgroundColor: item.value },
+                        ]}
+                      >
+                        {isSelected && (
+                          <Ionicons
+                            name="checkmark"
+                            size={16}
+                            color={item.contrastText}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>LANGUAGE</Text>
+
+          <View style={styles.appearanceCard}>
+            <View style={styles.themeModeRow}>
+              {LANGUAGE_OPTIONS.map((option) => {
+                const isActive = language === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.themeModeBtn, isActive && styles.themeModeBtnActive]}
+                    onPress={() => handleSelectLanguage(option.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="language-outline"
+                      size={16}
+                      color={isActive ? colors.primaryText : colors.textSecondary}
+                    />
+                    <Text
+                      style={[styles.themeModeBtnText, isActive && styles.themeModeBtnTextActive]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>MY CARDS</Text>
@@ -168,45 +511,49 @@ export default function SettingsScreen() {
               style={styles.actionBtnSmall}
               onPress={() => setShowAddCardModal(true)}
             >
-              <Ionicons name="add" size={16} color="#ffffff" />
+              <Ionicons name="add" size={16} color={colors.text} />
               <Text style={styles.actionBtnSmallText}>New Card</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.cardsList}>
-            {cards.map((card) => (
-              <View key={card.id} style={styles.cardItem}>
-                <View style={styles.cardInfoLeft}>
-                  <View style={styles.cardBrandBadge}>
-                    <Text style={styles.cardBrandText}>{card.brand.toUpperCase()}</Text>
+            {cards.length === 0 ? (
+              <View style={styles.emptyCardsContainer}>
+                <Ionicons name="card-outline" size={32} color={colors.textMuted} />
+                <Text style={styles.emptyCardsText}>No cards registered yet</Text>
+              </View>
+            ) : (
+              cards.map((card) => (
+                <View key={card.id} style={styles.cardItem}>
+                  <View style={styles.cardInfoLeft}>
+                    <View style={styles.cardBrandBadge}>
+                      <Text style={styles.cardBrandText}>{card.brand.toUpperCase()}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.cardDigits}>•••• {card.lastDigits}</Text>
+                      <Text style={styles.cardHolder}>
+                        {card.holderName} • {card.type}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.cardDigits}>•••• {card.lastDigits}</Text>
-                    <Text style={styles.cardHolder}>
-                      {card.holderName} • {card.type}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.cardInfoRight}>
-                  <Text style={styles.cardLimit}>{formatCurrency(card.limit)}</Text>
-                  {cards.length > 1 && (
+                  <View style={styles.cardInfoRight}>
+                    <Text style={styles.cardLimit}>{formatCurrency(card.limit, '$', locale)}</Text>
                     <TouchableOpacity
                       onPress={() => handleRemoveCard(card)}
                       style={styles.cardDeleteBtn}
                     >
-                      <Ionicons name="trash-outline" size={16} color="#ff5252" />
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
                     </TouchableOpacity>
-                  )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         </View>
 
-        {/* SECTION 2: BACKUP & OFFLINE-FIRST */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>BACKUP & RESTORE (OFFLINE-FIRST)</Text>
+          <Text style={styles.sectionTitle}>BACKUP & RESTORE</Text>
 
           <View style={styles.backupCard}>
             <Text style={styles.backupCardDesc}>
@@ -220,7 +567,7 @@ export default function SettingsScreen() {
                 onPress={handleExportBackup}
                 activeOpacity={0.8}
               >
-                <Ionicons name="share-outline" size={18} color="#ffffff" />
+                <Ionicons name="share-outline" size={18} color={colors.primaryText} />
                 <Text style={styles.backupBtnPrimaryText}>Export Backup</Text>
               </TouchableOpacity>
 
@@ -229,523 +576,503 @@ export default function SettingsScreen() {
                 onPress={() => setShowRestoreModal(true)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="download-outline" size={18} color="#ffffff" />
+                <Ionicons name="download-outline" size={18} color={colors.text} />
                 <Text style={styles.backupBtnSecondaryText}>Restore</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
-        {/* SECTION 3: STORAGE STATS & DANGER ZONE */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>DATA & STORAGE</Text>
+          <Text style={styles.sectionTitle}>HELP</Text>
 
-          <View style={styles.statsCard}>
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Total Expenses Recorded</Text>
-              <Text style={styles.statValue}>{expenses.length}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Registered Cards</Text>
-              <Text style={styles.statValue}>{cards.length}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Operation Mode</Text>
-              <Text style={[styles.statValue, { color: COLORS.success }]}>100% Offline</Text>
-            </View>
-          </View>
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={openOnboarding}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="book-outline" size={18} color={colors.text} />
+            <Text style={styles.helpButtonText}>Replay Tutorial</Text>
+          </TouchableOpacity>
+        </View>
 
+        <View style={styles.section}>
           <TouchableOpacity
             style={styles.dangerButton}
             onPress={handleClearAllData}
             activeOpacity={0.8}
           >
-            <Ionicons name="alert-circle-outline" size={18} color="#ff453a" />
+            <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
             <Text style={styles.dangerButtonText}>Reset Database</Text>
           </TouchableOpacity>
         </View>
 
-        {/* SECTION 4: ABOUT */}
         <View style={styles.aboutSection}>
           <Text style={styles.aboutTitle}>cashya</Text>
-          <Text style={styles.aboutVersion}>Version 1.0.0 (Offline-First Edition)</Text>
-          <Text style={styles.aboutTagline}>
-            Minimalism & Nothing OS aesthetic for noise-free financial tracking.
-          </Text>
+          <Text style={styles.aboutVersion}>Version 0.7</Text>
         </View>
       </ScrollView>
 
-      {/* MODAL: ADD CARD */}
-      <Modal visible={showAddCardModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Card</Text>
-              <TouchableOpacity onPress={() => setShowAddCardModal(false)}>
-                <Ionicons name="close" size={24} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
+      <AddCardModal
+        visible={showAddCardModal}
+        onClose={() => setShowAddCardModal(false)}
+      />
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.inputLabel}>Cardholder Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., JOHN DOE"
-                placeholderTextColor={COLORS.textSecondary}
-                value={cardHolder}
-                onChangeText={setCardHolder}
-                autoCapitalize="characters"
-              />
+      <BottomSheetModal
+        visible={showRestoreModal}
+        onClose={() => setShowRestoreModal(false)}
+        title="Restore Backup"
+      >
+        <Text style={styles.restoreDesc}>
+          Paste below the exported Cashya JSON backup to restore your transactions and cards.
+        </Text>
 
-              <Text style={styles.inputLabel}>Card Type</Text>
-              <View style={styles.pillRow}>
-                {(['Credit', 'Debit'] as CardType[]).map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.pillOption, cardType === t && styles.pillOptionActive]}
-                    onPress={() => setCardType(t)}
-                  >
-                    <Text
-                      style={[styles.pillOptionText, cardType === t && styles.pillOptionTextActive]}
-                    >
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+        <TextInput
+          style={styles.restoreTextArea}
+          placeholder='Paste JSON here: {"version":"1.0.0", "expenses": [...]}'
+          placeholderTextColor={colors.textMuted}
+          value={restoreJsonInput}
+          onChangeText={setRestoreJsonInput}
+          multiline
+          numberOfLines={8}
+        />
 
-              <Text style={styles.inputLabel}>Brand</Text>
-              <View style={styles.pillRow}>
-                {(['visa', 'mastercard', 'elo', 'generic'] as CardBrand[]).map((b) => (
-                  <TouchableOpacity
-                    key={b}
-                    style={[styles.pillOption, cardBrand === b && styles.pillOptionActive]}
-                    onPress={() => setCardBrand(b)}
-                  >
-                    <Text
-                      style={[styles.pillOptionText, cardBrand === b && styles.pillOptionTextActive]}
-                    >
-                      {b.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.inputRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.inputLabel}>Last 4 digits</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="1234"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={cardLastDigits}
-                    onChangeText={setCardLastDigits}
-                    keyboardType="numeric"
-                    maxLength={4}
-                  />
-                </View>
-
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.inputLabel}>Expiry (MM/YY)</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="12/29"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={cardExpiry}
-                    onChangeText={setCardExpiry}
-                    maxLength={5}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.inputLabel}>Total Limit ($)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g., 5000"
-                placeholderTextColor={COLORS.textSecondary}
-                value={cardLimit}
-                onChangeText={setCardLimit}
-                keyboardType="numeric"
-              />
-
-              <TouchableOpacity
-                style={styles.modalSaveButton}
-                onPress={handleCreateCard}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalSaveButtonText}>Save Card</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODAL: RESTORE BACKUP */}
-      <Modal visible={showRestoreModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Restore Backup</Text>
-              <TouchableOpacity onPress={() => setShowRestoreModal(false)}>
-                <Ionicons name="close" size={24} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.restoreDesc}>
-              Paste below the exported Cashya JSON backup to restore your transactions and cards.
-            </Text>
-
-            <TextInput
-              style={styles.restoreTextArea}
-              placeholder='Paste JSON here: {"version":"1.0.0", "expenses": [...]}'
-              placeholderTextColor={COLORS.textSecondary}
-              value={restoreJsonInput}
-              onChangeText={setRestoreJsonInput}
-              multiline
-              numberOfLines={8}
-            />
-
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              onPress={handleRestoreBackup}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.modalSaveButtonText}>Validate & Restore</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        <TouchableOpacity
+          style={styles.modalSaveButton}
+          onPress={handleRestoreBackup}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.modalSaveButtonText}>Validate & Restore</Text>
+        </TouchableOpacity>
+      </BottomSheetModal>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 110,
-    paddingTop: 10,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 28,
-    color: '#ffffff',
-    letterSpacing: 1.5,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    letterSpacing: 1,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  actionBtnSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1f1f26',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: '#2e2e38',
-    gap: 4,
-  },
-  actionBtnSmallText: {
-    fontSize: 11,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  cardsList: {
-    gap: 10,
-  },
-  cardItem: {
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#24242a',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardInfoLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cardBrandBadge: {
-    backgroundColor: '#202028',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  cardBrandText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  cardDigits: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 15,
-    color: '#ffffff',
-    letterSpacing: 1,
-  },
-  cardHolder: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  cardInfoRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cardLimit: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 14,
-    color: '#ffffff',
-  },
-  cardDeleteBtn: {
-    padding: 6,
-  },
-  backupCard: {
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#24242a',
-  },
-  backupCardDesc: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  backupBtnRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  backupBtnPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.lg,
-    gap: 6,
-  },
-  backupBtnPrimaryText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  backupBtnSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#202028',
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#30303a',
-    gap: 6,
-  },
-  backupBtnSecondaryText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  statsCard: {
-    backgroundColor: '#16161a',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#24242a',
-    marginBottom: 14,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  statValue: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 15,
-    color: '#ffffff',
-  },
-  statDivider: {
-    height: 1,
-    backgroundColor: '#22222a',
-    marginVertical: 4,
-  },
-  dangerButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#3a1a1c',
-    backgroundColor: '#1f1012',
-    gap: 8,
-  },
-  dangerButtonText: {
-    color: '#ff453a',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  aboutSection: {
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  aboutTitle: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 20,
-    color: '#ffffff',
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  aboutVersion: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  aboutTagline: {
-    fontSize: 11,
-    color: '#555560',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#141418',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 22,
-    maxHeight: '85%',
-    borderWidth: 1,
-    borderColor: '#2a2a34',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  inputLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  modalInput: {
-    backgroundColor: '#1a1a20',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#ffffff',
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#262630',
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 4,
-  },
-  pillOption: {
-    flex: 1,
-    backgroundColor: '#1a1a20',
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#262630',
-  },
-  pillOptionActive: {
-    backgroundColor: '#2c181a',
-    borderColor: COLORS.primary,
-  },
-  pillOptionText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  pillOptionTextActive: {
-    color: '#ffffff',
-  },
-  inputRow: {
-    flexDirection: 'row',
-  },
-  modalSaveButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: BORDER_RADIUS.lg,
-    alignItems: 'center',
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  modalSaveButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  restoreDesc: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  restoreTextArea: {
-    backgroundColor: '#1a1a20',
-    borderRadius: BORDER_RADIUS.md,
-    padding: 12,
-    color: '#ffffff',
-    fontSize: 12,
-    height: 140,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: '#262630',
-    fontFamily: FONTS.system,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 110,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 11,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+      marginBottom: 12,
+    },
+    subSectionTitle: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 10,
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 10,
+    },
+    accountCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    accountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 16,
+    },
+    accountIntro: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14,
+    },
+    accountAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountAvatarText: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 20,
+      color: colors.primaryText,
+      letterSpacing: 1,
+    },
+    accountIconBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountInfo: {
+      flex: 1,
+    },
+    accountName: {
+      fontFamily: FONTS.medium,
+      fontSize: 14,
+      color: colors.text,
+    },
+    accountEmail: {
+      fontFamily: FONTS.regular,
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    accountStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    accountStatusText: {
+      fontFamily: FONTS.ndotCaps || FONTS.system,
+      fontSize: 10,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+    },
+    accountBtnSecondaryFull: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackgroundLight,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 6,
+    },
+    biometricToggle: {
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+      borderRadius: 0,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      marginBottom: 16,
+    },
+    accountActions: {
+      gap: 10,
+    },
+    accountBtnPrimaryFull: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      gap: 6,
+    },
+    appearanceCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    themeModeRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    themeModeBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 8,
+    },
+    themeModeBtnActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    themeModeBtnText: {
+      fontFamily: FONTS.bold,
+      fontSize: 12,
+      color: colors.textSecondary,
+      letterSpacing: 0.5,
+    },
+    themeModeBtnTextActive: {
+      color: colors.primaryText,
+    },
+    accentDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: 16,
+    },
+    accentColorsGrid: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    accentItem: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accentCircleOuter: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    accentCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    actionBtnSmall: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackgroundLight,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: BORDER_RADIUS.full,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 4,
+    },
+    actionBtnSmallText: {
+      fontFamily: FONTS.medium,
+      fontSize: 11,
+      color: colors.text,
+      fontWeight: '600',
+    },
+    cardsList: {
+      gap: 10,
+    },
+    emptyCardsContainer: {
+      paddingVertical: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      gap: 8,
+    },
+    emptyCardsText: {
+      fontFamily: FONTS.regular,
+      color: colors.textSecondary,
+      fontSize: 13,
+    },
+    cardItem: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cardInfoLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    cardBrandBadge: {
+      backgroundColor: colors.cardBackgroundLight,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: BORDER_RADIUS.xs,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    cardBrandText: {
+      fontFamily: FONTS.bold,
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    cardDigits: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 15,
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    cardHolder: {
+      fontFamily: FONTS.regular,
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    cardInfoRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    cardLimit: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 14,
+      color: colors.text,
+    },
+    cardDeleteBtn: {
+      padding: 6,
+    },
+    backupCard: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    backupCardDesc: {
+      fontFamily: FONTS.regular,
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      marginBottom: 14,
+    },
+    backupBtnRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    backupBtnPrimary: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      gap: 6,
+    },
+    backupBtnPrimaryText: {
+      fontFamily: FONTS.medium,
+      color: colors.primaryText,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    backupBtnSecondary: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackgroundLight,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 6,
+    },
+    backupBtnSecondaryText: {
+      fontFamily: FONTS.medium,
+      color: colors.text,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    helpButton: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackgroundLight,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 8,
+    },
+    helpButtonText: {
+      fontFamily: FONTS.medium,
+      color: colors.text,
+      fontSize: 13,
+    },
+    dangerButton: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.error,
+      backgroundColor: colors.cardBackground,
+      gap: 8,
+    },
+    dangerButtonText: {
+      fontFamily: FONTS.bold,
+      color: colors.error,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    aboutSection: {
+      alignItems: 'center',
+      marginTop: 10,
+      marginBottom: 20,
+    },
+    aboutTitle: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 20,
+      color: colors.text,
+      letterSpacing: 2,
+      marginBottom: 4,
+    },
+    aboutVersion: {
+      fontFamily: FONTS.regular,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    modalSaveButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 14,
+      borderRadius: BORDER_RADIUS.md,
+      alignItems: 'center',
+      marginTop: 24,
+      marginBottom: 20,
+    },
+    modalSaveButtonText: {
+      fontFamily: FONTS.bold,
+      color: colors.primaryText,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    restoreDesc: {
+      fontFamily: FONTS.regular,
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginBottom: 12,
+      lineHeight: 18,
+    },
+    restoreTextArea: {
+      backgroundColor: colors.inputBackground,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 12,
+      color: colors.text,
+      fontSize: 12,
+      height: 140,
+      textAlignVertical: 'top',
+      borderWidth: 1,
+      borderColor: colors.border,
+      fontFamily: FONTS.regular,
+    },
+  });
+}

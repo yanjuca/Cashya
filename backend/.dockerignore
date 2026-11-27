@@ -1,0 +1,26 @@
+# Nunca enviar segredos nem bancos locais para a imagem
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+data/
+
+# Ambiente e caches locais
+.venv/
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Fora da imagem de produção
+.git/
+.gitignore
+tests/
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
