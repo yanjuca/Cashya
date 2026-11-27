@@ -10,6 +10,7 @@ from app.models.card import Card
 from app.models.expense import Expense
 from app.models.user import User
 from app.schemas.card import CardCreate, CardPatch, CardRead
+from app.schemas.card import normalize_type as normalize_card_type
 from app.schemas.common import ensure_utc
 from app.schemas.expenses import ExpenseCreate, ExpensePatch, ExpenseRead
 from app.schemas.sync import BackupExport, BackupPayload, ImportResult, Mutation, ServerChanges, SyncApplied, SyncBatchRequest, SyncBatchResponse, SyncConflict
@@ -201,7 +202,7 @@ def import_backup(db: Session, user: User, payload: BackupPayload) -> ImportResu
         values = {
             "holder_name": item.holder_name,
             "brand": item.brand.lower() if item.brand.lower() in ("visa", "mastercard", "elo", "generic") else "generic",
-            "type": "Debit" if item.type.lower() == "debit" else "Credit",
+            "type": "Debit" if normalize_card_type(item.type) == "Debit" else "Credit",
             "last_digits": item.last_digits,
             "expiry_date": item.expiry_date,
             "limit": Decimal(str(item.limit)),
@@ -237,6 +238,10 @@ def import_backup(db: Session, user: User, payload: BackupPayload) -> ImportResu
             "paid": item.paid,
             "source": item.source or "import",
             "card_id": card_id,
+            "recurring": item.recurring,
+            "recurring_months": item.recurring_months,
+            "recurring_source_id": item.recurring_source_id,
+            "skipped_months": item.skipped_months,
         }
         if expense is None:
             db.add(Expense(id=item.id, user_id=user.id, created_at=item.created_at or datetime.now(timezone.utc), **values))

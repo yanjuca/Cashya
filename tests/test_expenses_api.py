@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from tests.conftest import API
 
 EXPENSE = {
@@ -10,6 +12,40 @@ EXPENSE = {
     "paid": False,
     "source": "manual",
 }
+
+
+def test_recurring_fields_round_trip(client, auth_headers):
+    origin_id = f"origin-{uuid4().hex[:12]}"
+    origin = {**EXPENSE, "id": origin_id, "recurring": True, "recurringMonths": 6, "skippedMonths": ["2026-11", "2026-1", "2026-11"]}
+    created = client.post(f"{API}/expenses", json=origin, headers=auth_headers)
+    assert created.status_code == 201, created.text
+    data = created.json()["data"]
+    assert (data["recurring"], data["recurringMonths"], data["recurringSourceId"]) == (True, 6, None)
+    assert data["skippedMonths"] == ["2026-11", "2026-1"]
+
+    copy_id = f"{origin_id}-r-2026-10"
+    copy = client.post(f"{API}/expenses", json={**EXPENSE, "id": copy_id, "date": "2026-10-09T00:00:00.000Z", "recurringSourceId": origin_id}, headers=auth_headers)
+    assert copy.status_code == 201, copy.text
+    assert (copy.json()["data"]["recurring"], copy.json()["data"]["recurringSourceId"]) == (False, origin_id)
+
+    # Stopping the series from the app: the copy loses its link (null) and the origin stops repeating.
+    detached = client.patch(f"{API}/expenses/{copy_id}", json={"recurringSourceId": None}, headers=auth_headers)
+    assert detached.json()["data"]["recurringSourceId"] is None
+    stopped = client.patch(f"{API}/expenses/{origin_id}", json={"recurring": None, "skippedMonths": None}, headers=auth_headers)
+    assert stopped.status_code == 200, stopped.text
+    assert (stopped.json()["data"]["recurring"], stopped.json()["data"]["skippedMonths"]) == (False, [])
+
+    listed = {item["id"]: item for item in client.get(f"{API}/expenses", headers=auth_headers).json()["data"]["items"]}
+    assert listed[origin_id]["recurringMonths"] == 6
+
+    plain = client.post(f"{API}/expenses", json={**EXPENSE, "id": None}, headers=auth_headers).json()["data"]
+    assert (plain["recurring"], plain["recurringMonths"], plain["skippedMonths"]) == (False, None, [])
+
+
+def test_recurring_fields_are_validated(client, auth_headers):
+    for bad in ({"recurringMonths": 121}, {"recurringMonths": -1}, {"skippedMonths": ["2026-13"]}, {"skippedMonths": ["2026-01"]}, {"skippedMonths": ["nov"]}):
+        response = client.post(f"{API}/expenses", json={**EXPENSE, "id": None, **bad}, headers=auth_headers)
+        assert response.status_code == 422, (bad, response.text)
 
 
 def test_expenses_contract_filters_reports_and_soft_delete(client, auth_headers):

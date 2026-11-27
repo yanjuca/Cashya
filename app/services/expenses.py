@@ -156,6 +156,11 @@ def replace_expense(db: Session, user: User, expense: Expense, data: ExpenseUpda
 
 def patch_expense(db: Session, user: User, expense: Expense, data: ExpensePatch) -> Expense:
     values = data.model_dump(exclude_unset=True)
+    # An explicit null clears the field; these two columns are NOT NULL, so null means "back to the default".
+    if "recurring" in values and values["recurring"] is None:
+        values["recurring"] = False
+    if "skipped_months" in values and values["skipped_months"] is None:
+        values["skipped_months"] = []
     if "card_id" in values:
         validate_card(db, user, values["card_id"])
     if "group_id" in values:
