@@ -86,6 +86,15 @@ export const CashyaApi = {
     me(): Promise<ApiUser> {
       return authorizedRequest<ApiUser>('/users/me');
     },
+
+    /** Always succeeds for a valid e-mail (the server does not reveal whether the account exists). */
+    async requestPasswordReset(email: string): Promise<void> {
+      await apiRequest('/auth/password-reset/request', { method: 'POST', body: { email } });
+    },
+
+    async confirmPasswordReset(data: { email: string; code: string; newPassword: string }): Promise<void> {
+      await apiRequest('/auth/password-reset/confirm', { method: 'POST', body: data });
+    },
   },
 
   sync: {
