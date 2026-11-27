@@ -1,40 +1,56 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
   Platform,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
-import { COLORS, FONTS } from '../../theme';
-
-const { height } = Dimensions.get('window');
+import { useTheme } from '../../contexts/ThemeContext';
+import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
+import BottomSheetModal from '../ui/BottomSheetModal';
+import RecurringToggle from '../ui/RecurringToggle';
+import Text from '../ui/AppText';
+import TextInput from '../ui/AppTextInput';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface AddExpenseScreenProps {
+  visible?: boolean;
   onClose: () => void;
 }
 
-export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
+const CURRENT_YEAR = new Date().getFullYear();
+export const MIN_ALLOWED_DATE = new Date(CURRENT_YEAR - 5, 0, 1);
+export const MAX_ALLOWED_DATE = new Date(CURRENT_YEAR + 5, 11, 31, 23, 59, 59);
+
+export default function AddExpenseScreen({ visible = true, onClose }: AddExpenseScreenProps) {
+  const { locale } = useLanguage();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { showAlert } = useAlert();
   const { addExpense } = useExpenses();
-  const { activeCard } = useCards();
+  const { cards, activeCard } = useCards();
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [person, setPerson] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState<string | undefined>(activeCard?.id);
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [recurring, setRecurring] = useState(false);
+  const [recurringMonths, setRecurringMonths] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedCardId(activeCard?.id);
+    }
+  }, [visible, activeCard?.id]);
 
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -47,18 +63,51 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
     setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
+  const resetForm = () => {
+    setDescription('');
+    setAmount('');
+    setPerson('');
+    setSelectedCardId(activeCard?.id);
+    setDate(new Date());
+    setTagInput('');
+    setTags([]);
+    setRecurring(false);
+    setRecurringMonths('');
+  };
+
   const handleSave = async () => {
     if (!description.trim()) {
-      Alert.alert('Warning', 'Please enter a description.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a description.',
+        type: 'warning',
+      });
       return;
     }
     const parsedAmount = parseFloat(amount.replace(',', '.'));
     if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Warning', 'Please enter a valid amount.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter a valid amount.',
+        type: 'warning',
+      });
       return;
     }
     if (!person.trim()) {
-      Alert.alert('Warning', 'Please enter who should pay / responsible.');
+      showAlert({
+        title: 'Warning',
+        message: 'Please enter who should pay / responsible.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    if (date < MIN_ALLOWED_DATE || date > MAX_ALLOWED_DATE) {
+      showAlert({
+        title: 'Invalid Date',
+        message: `Please select a date between ${MIN_ALLOWED_DATE.getFullYear()} and ${MAX_ALLOWED_DATE.getFullYear()}.`,
+        type: 'warning',
+      });
       return;
     }
 
@@ -70,15 +119,25 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
         date: date,
         tags: tags,
         paid: false,
-        cardId: activeCard?.id,
+        recurring: recurring,
+        recurringMonths: recurring && recurringMonths ? parseInt(recurringMonths, 10) : undefined,
+        cardId: selectedCardId,
         source: 'manual',
       });
 
-      Alert.alert('Success', 'Expense recorded successfully!', [
-        { text: 'OK', onPress: onClose },
-      ]);
+      resetForm();
+      onClose();
+      showAlert({
+        title: 'Success',
+        message: 'Expense recorded successfully!',
+        type: 'success',
+      });
     } catch {
-      Alert.alert('Error', 'Unable to save expense.');
+      showAlert({
+        title: 'Error',
+        message: 'Unable to save expense.',
+        type: 'danger',
+      });
     }
   };
 
@@ -90,316 +149,290 @@ export default function AddExpenseScreen({ onClose }: AddExpenseScreenProps) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.backgroundGradientStart} />
-
-      <LinearGradient
-        colors={[COLORS.backgroundGradientStart, COLORS.backgroundGradientEnd]}
-        style={styles.gradient}
+    <BottomSheetModal
+      visible={visible}
+      onClose={onClose}
+      title="New Expense"
+    >
+      <Text style={styles.inputLabel}>Description</Text>
+      <TextInput
+        style={styles.modalInput}
+        placeholder="e.g., Dinner, Grocery store..."
+        placeholderTextColor={colors.textMuted}
+        value={description}
+        onChangeText={setDescription}
+        autoCapitalize="sentences"
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={28} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Expense</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <Text style={styles.inputLabel}>Amount ($)</Text>
+      <TextInput
+        style={[styles.modalInput, styles.amountInput]}
+        placeholder="0.00"
+        placeholderTextColor={colors.textMuted}
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="decimal-pad"
+      />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Description Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Dinner, Grocery store..."
-            placeholderTextColor={COLORS.textSecondary}
-            value={description}
-            onChangeText={setDescription}
-            autoCapitalize="sentences"
-          />
-        </View>
+      <Text style={styles.inputLabel}>Responsible / Who Pays</Text>
+      <TextInput
+        style={styles.modalInput}
+        placeholder="e.g., You, John, Split..."
+        placeholderTextColor={colors.textMuted}
+        value={person}
+        onChangeText={setPerson}
+        autoCapitalize="words"
+      />
 
-        {/* Amount Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Amount</Text>
-          <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>$</Text>
-            <TextInput
-              style={styles.amountInput}
-              placeholder="0.00"
-              placeholderTextColor={COLORS.textSecondary}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-            />
-          </View>
-        </View>
-
-        {/* Person Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Who should pay / Responsible</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., John, Mary, House..."
-            placeholderTextColor={COLORS.textSecondary}
-            value={person}
-            onChangeText={setPerson}
-            autoCapitalize="words"
-          />
-        </View>
-
-        {/* Date Picker */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Date</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <MaterialIcons name="calendar-today" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.dateText}>
-              {date.toLocaleDateString('en-US', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={onDateChange}
-          />
-        )}
-
-        {/* Tags Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Tags (optional)</Text>
-          <View style={styles.tagInputContainer}>
-            <TextInput
-              style={styles.tagInput}
-              placeholder="Add tag (e.g., leisure, grocery)..."
-              placeholderTextColor={COLORS.textSecondary}
-              value={tagInput}
-              onChangeText={setTagInput}
-              onSubmitEditing={handleAddTag}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity style={styles.addTagButton} onPress={handleAddTag}>
-              <MaterialIcons name="add" size={24} color={COLORS.text} />
+      {cards.length > 0 && (
+        <>
+          <Text style={styles.inputLabel}>Payment Method</Text>
+          <View style={styles.pillRow}>
+            <TouchableOpacity
+              style={[
+                styles.pillOption,
+                selectedCardId === undefined && styles.pillOptionActive,
+              ]}
+              onPress={() => setSelectedCardId(undefined)}
+            >
+              <Text
+                style={[
+                  styles.pillOptionText,
+                  selectedCardId === undefined && styles.pillOptionTextActive,
+                ]}
+              >
+                Cash / Other
+              </Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Tags Display */}
-          {tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {tags.map((tag, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.tag}
-                  onPress={() => handleRemoveTag(tag)}
+            {cards.map((c) => (
+              <TouchableOpacity
+                key={c.id}
+                style={[
+                  styles.pillOption,
+                  selectedCardId === c.id && styles.pillOptionActive,
+                ]}
+                onPress={() => setSelectedCardId(c.id)}
+              >
+                <Text
+                  style={[
+                    styles.pillOptionText,
+                    selectedCardId === c.id && styles.pillOptionTextActive,
+                  ]}
                 >
-                  <Text style={styles.tagText}>{tag}</Text>
-                  <Ionicons name="close-circle" size={16} color={COLORS.textSecondary} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
+                  {c.brand.toUpperCase()} •• {c.lastDigits}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
-        {/* Hints */}
-        <View style={styles.hintsContainer}>
-          <Text style={styles.hintText}>Tap a tag to remove it</Text>
-        </View>
-      </ScrollView>
+      <Text style={styles.inputLabel}>Date</Text>
+      <TouchableOpacity
+        style={styles.modalInputRow}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
+        <Text style={styles.dateText}>
+          {date.toLocaleDateString(locale, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+        </Text>
+      </TouchableOpacity>
 
-      {/* Save Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.saveButtonText}>Save Expense</Text>
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onDateChange}
+          themeVariant={isDark ? 'dark' : 'light'}
+          minimumDate={MIN_ALLOWED_DATE}
+          maximumDate={MAX_ALLOWED_DATE}
+        />
+      )}
+
+      <Text style={styles.inputLabel}>Tags</Text>
+      <View style={styles.tagInputWrapper}>
+        <TextInput
+          style={styles.tagInput}
+          placeholder="Add tag (e.g., Food, Travel)..."
+          placeholderTextColor={colors.textMuted}
+          value={tagInput}
+          onChangeText={setTagInput}
+          onSubmitEditing={handleAddTag}
+          returnKeyType="done"
+        />
+        <TouchableOpacity style={styles.tagAddBtn} onPress={handleAddTag}>
+          <Ionicons name="add" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
-    </View>
+
+      {tags.length > 0 && (
+        <View style={styles.tagsDisplayRow}>
+          {tags.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              style={styles.tagChip}
+              onPress={() => handleRemoveTag(tag)}
+            >
+              <Text style={styles.tagChipText}>#{tag}</Text>
+              <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <RecurringToggle
+        value={recurring}
+        onChange={setRecurring}
+        months={recurringMonths}
+        onMonthsChange={setRecurringMonths}
+      />
+
+      <TouchableOpacity
+        style={styles.modalSaveButton}
+        onPress={handleSave}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.modalSaveButtonText}>Save Expense</Text>
+      </TouchableOpacity>
+    </BottomSheetModal>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  gradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: height,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  closeButton: {
-    padding: 5,
-  },
-  headerTitle: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 18,
-    color: COLORS.text,
-    letterSpacing: 1,
-  },
-  placeholder: {
-    width: 38,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 14,
-    color: COLORS.text,
-    fontSize: 15,
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-  },
-  currencySymbol: {
-    fontFamily: FONTS.ndot || FONTS.system,
-    fontSize: 20,
-    color: COLORS.primary,
-    marginRight: 8,
-  },
-  amountInput: {
-    flex: 1,
-    paddingVertical: 14,
-    color: COLORS.text,
-    fontSize: 18,
-    fontFamily: FONTS.ndot || FONTS.system,
-  },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-  },
-  dateText: {
-    color: COLORS.text,
-    fontSize: 15,
-  },
-  tagInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingRight: 8,
-  },
-  tagInput: {
-    flex: 1,
-    padding: 14,
-    color: COLORS.text,
-    fontSize: 15,
-  },
-  addTagButton: {
-    padding: 6,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.cardBackgroundLight,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  tagText: {
-    color: COLORS.text,
-    fontSize: 13,
-  },
-  hintsContainer: {
-    marginTop: 10,
-  },
-  hintText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  footer: {
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.background,
-  },
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveButtonText: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    inputLabel: {
+      fontFamily: FONTS.medium,
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginBottom: 8,
+      marginTop: 14,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    modalInput: {
+      fontFamily: FONTS.regular,
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: colors.text,
+      fontSize: 15,
+    },
+    amountInput: {
+      fontFamily: FONTS.ndot || FONTS.system,
+      fontSize: 20,
+      letterSpacing: 1,
+      color: colors.text,
+    },
+    modalInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    dateText: {
+      fontFamily: FONTS.regular,
+      color: colors.text,
+      fontSize: 15,
+    },
+    pillRow: {
+      flexDirection: 'row',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    pillOption: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: BORDER_RADIUS.sm,
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    pillOptionActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    pillOptionText: {
+      fontFamily: FONTS.medium,
+      color: colors.textSecondary,
+      fontSize: 12,
+    },
+    pillOptionTextActive: {
+      fontFamily: FONTS.bold,
+      color: colors.primaryText,
+    },
+    tagInputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: BORDER_RADIUS.md,
+      paddingRight: 8,
+    },
+    tagInput: {
+      flex: 1,
+      fontFamily: FONTS.regular,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: colors.text,
+      fontSize: 14,
+    },
+    tagAddBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: BORDER_RADIUS.sm,
+      backgroundColor: colors.cardBackgroundLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tagsDisplayRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 10,
+    },
+    tagChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.cardBackgroundLight,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      borderRadius: BORDER_RADIUS.sm,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    tagChipText: {
+      fontFamily: FONTS.medium,
+      fontSize: 12,
+      color: colors.text,
+    },
+    modalSaveButton: {
+      backgroundColor: colors.primary,
+      borderRadius: BORDER_RADIUS.md,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 24,
+      marginBottom: 10,
+    },
+    modalSaveButtonText: {
+      fontFamily: FONTS.bold,
+      color: colors.primaryText,
+      fontSize: 15,
+    },
+  });
+}
