@@ -1,6 +1,6 @@
 <div align="center">
 
-# `cashya`
+# `cash`
 
 **Controle de despesas pessoais e compartilhadas, com design minimalista e retrofuturista e foco total em simplicidade.**
 
@@ -56,7 +56,7 @@ Aplicativo mobile (Expo / React Native) e API (FastAPI) no mesmo repositório.
 
 ## 💡 Visão geral
 
-O **Cashya** é um aplicativo para registrar despesas do dia a dia, dividir contas entre pessoas e acompanhar o limite dos cartões. Ele foi pensado para ser rápido e sem atrito: abre e funciona na hora, mesmo sem internet e sem conta.
+O **CASH** é um aplicativo para registrar despesas do dia a dia, dividir contas entre pessoas e acompanhar o limite dos cartões. Ele foi pensado para ser rápido e sem atrito: abre e funciona na hora, mesmo sem internet e sem conta.
 
 O visual se inspira na estética retrofuturista e minimalista do **Nothing OS**, com a tipografia matricial `Ndot57`, fundo preto OLED e uma cor de destaque que o usuário escolhe.
 
@@ -199,7 +199,7 @@ Cashya/
 ├── app.json / eas.json           # Configuração do Expo e do EAS Build
 ├── .env.example                  # Variáveis do app (URL da API)
 │
-└── backend/                      # API cashya-api
+└── backend/                      # API do CASH
     ├── app/
     │   ├── core/                 #   Configuração, banco, JWT, segurança e serialização
     │   ├── models/               #   Tabelas SQLAlchemy
