@@ -54,7 +54,7 @@ Esta versão adapta o backend ao `BACKEND_SPEC.md` (modelo local-first → nuvem
 1. Atualize as dependências: `pip install -r requirements.txt` (FastAPI 0.141 e `python-jose` 3.5, que corrige CVEs da 3.3).
 2. Adicione `REFRESH_TOKEN_EXPIRE_DAYS` ao `.env` (veja `.env.example`).
 3. Rode `alembic upgrade head` (testado com upgrade e downgrade sobre o banco da versão anterior).
-4. Atualize o cliente: o `api.ts` do app já usa `/api/v1`, guarda `accessToken`/`refreshToken` e converte a resposta de `sync/batch` para o formato que o `ExpensesContext` consome.
+4. Atualize o app: o cliente em `services/api/` (raiz do repositório) já usa `/api/v1`, guarda `accessToken`/`refreshToken` e o `services/sync.ts` aplica a resposta de `sync/batch` nos Contexts.
 5. Usuários já cadastrados continuam válidos; apenas precisam fazer login novamente para receber um `refreshToken`.
 
 ### Mapa de telas do app → endpoints
@@ -72,22 +72,21 @@ Esta versão adapta o backend ao `BACKEND_SPEC.md` (modelo local-first → nuvem
 ## Estrutura do projeto
 
 ```text
-Cashya/
-├── app/                       # Aplicativo Expo/React Native
-├── components/                # Componentes e telas mobile
-├── contexts/                  # Estado compartilhado
-├── api.ts                    # Cliente TypeScript da API (/api/v1)
+Cashya/                        # raiz do repositório = aplicativo Expo/React Native
+├── app/, components/, contexts/
+├── services/api/              # Cliente TypeScript da API (/api/v1), sessão e conversões
+├── services/sync.ts           # Fila offline enviada por POST /sync/batch
 ├── package.json
-└── cashya-api/
+└── backend/                   # esta API
     ├── app/
     │   ├── core/             # Configuração, banco, segurança e serialização
-    │   ├── models/           # User, Card, Expense, Group, GroupMember, RefreshToken, PendingTransaction
+    │   ├── models/           # User, Card, Expense, Group, GroupMember, RefreshToken, PendingTransaction, e-mail
     │   ├── routers/          # auth, users, cards, expenses, groups, sync, inbox, dashboard, statistics
     │   ├── schemas/          # Contratos Pydantic (camelCase)
-    │   ├── services/         # Regras de negócio (auth, cards, expenses, groups, sync)
+    │   ├── services/         # Regras de negócio (auth, cards, expenses, groups, sync, e-mail)
     │   └── main.py           # Aplicação FastAPI
-    ├── migrations/           # Alembic (0001 contrato de despesas, 0002 cartões/grupos/refresh tokens)
-    ├── tests/                # Testes automatizados (pytest)
+    ├── migrations/           # Alembic (0001 → 0004)
+    ├── tests/                # Testes de API e unitários (pytest)
     ├── .env.example
     ├── Dockerfile
     ├── docker-compose.yml
@@ -106,7 +105,7 @@ Cashya/
 ### Windows PowerShell
 
 ```powershell
-cd cashya-api
+cd backend
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -116,7 +115,7 @@ pip install -r requirements.txt
 ### Linux ou macOS
 
 ```bash
-cd cashya-api
+cd backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -156,7 +155,7 @@ Nunca versione `.env`, chaves secretas ou bancos locais.
 ## Executando a API
 
 ```powershell
-cd cashya-api
+cd backend
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
@@ -175,7 +174,7 @@ A imagem usa build em duas etapas, roda como usuário sem privilégios (`cashya`
 ### Com Docker Compose (recomendado)
 
 ```powershell
-cd cashya-api
+cd backend
 Copy-Item .env.example .env   # e preencha SECRET_KEY etc.
 docker compose up -d --build
 docker compose logs -f api
@@ -192,7 +191,7 @@ docker compose run --rm api alembic upgrade head
 ### Só com Docker
 
 ```powershell
-cd cashya-api
+cd backend
 docker build -t cashya-api .
 docker run -d --name cashya-api -p 8000:8000 --env-file .env -e DATABASE_URL=sqlite:////app/data/cashya.db -v cashya-data:/app/data cashya-api
 ```
@@ -201,7 +200,7 @@ docker run -d --name cashya-api -p 8000:8000 --env-file .env -e DATABASE_URL=sql
 
 ## Integração com o aplicativo mobile
 
-O cliente está em `api.ts`, já apontando para `/api/v1`, e usa `EXPO_PUBLIC_API_URL` quando definida:
+O cliente está em `services/api/` (raiz do repositório), já apontando para `/api/v1`, e usa `EXPO_PUBLIC_API_URL` (arquivo `.env.local` na raiz) quando definida:
 
 | Ambiente | URL |
 | --- | --- |
@@ -209,7 +208,7 @@ O cliente está em `api.ts`, já apontando para `/api/v1`, e usa `EXPO_PUBLIC_AP
 | Emulador Android | `http://10.0.2.2:8000` |
 | Celular físico | IP local do computador, como `http://192.168.0.10:8000` |
 
-No Android e iOS, o app mantém o perfil e o cache local em SQLite e guarda `accessToken`/`refreshToken` no armazenamento seguro do dispositivo. Dados existentes no AsyncStorage são migrados automaticamente na primeira abertura. Na Web, o app mantém o armazenamento do navegador. A sessão é renovada via `/auth/refresh`.
+O app continua offline-first: despesas e cartões ficam no AsyncStorage e cada alteração entra numa fila (`services/sync.ts`) enviada por `POST /sync/batch` quando há conta logada e rede; a mesma chamada traz o que mudou em outros aparelhos. `accessToken`/`refreshToken` ficam no armazenamento seguro do dispositivo (`expo-secure-store`; na Web, no armazenamento do navegador) e a sessão é renovada via `/auth/refresh`.
 
 ## Autenticação
 
@@ -396,11 +395,11 @@ Códigos: `BAD_REQUEST` (400), `UNAUTHORIZED` / `INVALID_SIGNATURE` (401), `FORB
 ## Banco de dados e migrações
 
 ```powershell
-cd cashya-api
+cd backend
 alembic upgrade head
 ```
 
-Revisões: `20260909_0001` (contrato de despesas) e `20260921_0002` (cartões, grupos, refresh tokens, `card_id`/`group_id`, remoção de categorias/orçamentos). Para criar uma revisão após alterar os modelos:
+Revisões: `20260909_0001` (contrato de despesas; num banco vazio cria o schema completo), `20260921_0002` (cartões, grupos, refresh tokens, `card_id`/`group_id`, remoção de categorias/orçamentos), `20261114_0003` (verificação de e-mail, códigos de redefinição e envios) e `20261126_0004` (despesas recorrentes). Para criar uma revisão após alterar os modelos:
 
 ```powershell
 alembic revision --autogenerate -m "describe schema change"
@@ -454,7 +453,10 @@ A cobertura considera os módulos `services`, `core`, `schemas` e `models`. Os r
 
 ## Aplicativo mobile
 
+O app fica na raiz do repositório:
+
 ```powershell
+cd ..
 npm install
 npm start
 ```
