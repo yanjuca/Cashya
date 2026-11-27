@@ -729,16 +729,16 @@ eas build -p android --profile production   # build de produção (Play Store)
 
 O CASH foi desenvolvido em equipe por **8 integrantes**:
 
-| Nº | Integrante | RA |
-| :---: | :--- | :---: |
-| 1 | Anallyce Guedes Oliveira | 12824128668 |
-| 2 | Gabriela Maria Espíndola Galindo | 1282317660 |
-| 3 | João Paulo Higino Ferreira | 1282322793 |
-| 4 | Kalyel Costa Lira da Cunha | 12823125478 |
-| 5 | Maria Eduarda Evangelista de Carvalho | 12823212927 |
-| 6 | Mateus Emanoel Soares Montenegro | 12823213410 |
-| 7 | Yan Carneiro Jucá | 12823126993 |
-| 8 | Yudle Blenda Lopes de Lima | 12824223999 |
+| Nº | Integrante | RA | E-mail |
+| :---: | :--- | :---: | :--- |
+| 1 | Anallyce Guedes Oliveira | 12824128668 | 12824128668@ulife.com.br |
+| 2 | Gabriela Maria Espíndola Galindo | 1282317660 | 1282317660@ulife.com.br |
+| 3 | João Paulo Higino Ferreira | 1282322793 | 1282322793@ulife.com.br |
+| 4 | Kalyel Costa Lira da Cunha | 12823125478 | 12823125478@ulife.com.br |
+| 5 | Maria Eduarda Evangelista de Carvalho | 12823212927 | 12823212927@ulife.com.br |
+| 6 | Mateus Emanoel Soares Montenegro | 12823213410 | 12823213410@ulife.com.br |
+| 7 | Yan Carneiro Jucá | 12823126993 | 12823126993@ulife.com.br |
+| 8 | Yudle Blenda Lopes de Lima | 12824223999 | 12824223999@ulife.com.br |
 
 ---
 
