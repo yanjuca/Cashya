@@ -32,7 +32,7 @@ export const BackupService = {
       const jsonString = JSON.stringify(backup, null, 2);
 
       const result = await Share.share({
-        title: `Cashya_Backup_${new Date().toISOString().slice(0, 10)}.json`,
+        title: `CASH_Backup_${new Date().toISOString().slice(0, 10)}.json`,
         message: jsonString,
       });
 

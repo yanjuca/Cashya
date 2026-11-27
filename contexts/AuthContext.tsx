@@ -77,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [biometricPref, setBiometricPref] = useState<BiometricPreference>(null);
 
   const unlockWithBiometrics = useCallback(async (): Promise<boolean> => {
-    const verified = await BiometricService.authenticate('Unlock Cashya');
+    const verified = await BiometricService.authenticate('Unlock CASH');
     if (!verified) return false;
     const account = await AuthService.getFirstUser();
     if (!account) return false;

@@ -141,7 +141,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
     showAlert({
       title: 'Remove Login',
       message:
-        'Your account will be deleted from this device and Cashya will stop asking you to log in. Your expenses and cards stay on this device.',
+        'Your account will be deleted from this device and CASH will stop asking you to log in. Your expenses and cards stay on this device.',
       type: 'danger',
       icon: 'trash-outline',
       buttons: [
@@ -292,7 +292,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
                   <ToggleRow
                     icon={biometricIcon}
                     title={`Unlock with ${biometricLabel}`}
-                    subtitle="Skip typing your password when opening Cashya"
+                    subtitle="Skip typing your password when opening CASH"
                     value={biometricEnabled}
                     onChange={handleToggleBiometric}
                     style={styles.biometricToggle}
@@ -330,13 +330,13 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
                       {hasAccount ? 'You are not logged in' : 'Logging in is optional'}
                     </Text>
                     <Text style={styles.accountEmail}>
-                      {hasAccount ? 'Log in to your Cashya account.' : 'Cashya works fully offline.'}
+                      {hasAccount ? 'Log in to your CASH account.' : 'CASH works fully offline.'}
                     </Text>
                   </View>
                 </View>
 
                 <Text style={styles.backupCardDesc}>
-                  You can use Cashya with or without an account. Create one if you want to log in
+                  You can use CASH with or without an account. Create one if you want to log in
                   whenever you open the app.
                 </Text>
 
@@ -608,7 +608,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         </View>
 
         <View style={styles.aboutSection}>
-          <Text style={styles.aboutTitle}>cashya</Text>
+          <Text style={styles.aboutTitle}>cash</Text>
           <Text style={styles.aboutVersion}>Version 0.7</Text>
         </View>
       </ScrollView>
@@ -624,7 +624,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         title="Restore Backup"
       >
         <Text style={styles.restoreDesc}>
-          Paste below the exported Cashya JSON backup to restore your transactions and cards.
+          Paste below the exported CASH JSON backup to restore your transactions and cards.
         </Text>
 
         <TextInput
