@@ -31,12 +31,12 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from_email: str = ""
-    smtp_from_name: str = "Cashya"
+    smtp_from_name: str = "CASH"
     smtp_starttls: bool = True
     smtp_use_ssl: bool = False
     email_schedule_hour_utc: int = 12
     monthly_report_prompt: str = (
-        "Congratulations on another month of tracking your finances with Cashya. "
+        "Congratulations on another month of tracking your finances with CASH. "
         "Review your pending expenses and card limits to stay on top of your budget."
     )
 

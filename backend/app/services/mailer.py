@@ -58,10 +58,10 @@ def send_email_best_effort(recipient: str, subject: str, body: str) -> None:
 
 def verification_email(name: str, code: str) -> tuple[str, str]:
     return (
-        "Verify your Cashya email",
+        "Verify your CASH email",
         f"""Hi {name},
 
-Your Cashya email verification code is {code}.
+Your CASH email verification code is {code}.
 It expires in 15 minutes. Enter it in Settings to enable financial emails.
 
 If you did not create this account, you can ignore this message.""",
@@ -70,10 +70,10 @@ If you did not create this account, you can ignore this message.""",
 
 def password_reset_email(name: str, code: str) -> tuple[str, str]:
     return (
-        "Your Cashya password reset code",
+        "Your CASH password reset code",
         f"""Hi {name},
 
-Your 6-digit Cashya password reset code is {code}.
+Your 6-digit CASH password reset code is {code}.
 It expires in 15 minutes and can be used once.
 
 If you did not request a password reset, ignore this message. Your password will not change.""",
@@ -82,10 +82,10 @@ If you did not request a password reset, ignore this message. Your password will
 
 def password_changed_email(name: str) -> tuple[str, str]:
     return (
-        "Your Cashya password was changed",
+        "Your CASH password was changed",
         f"""Hi {name},
 
-The password for your Cashya account was changed, and saved refresh sessions were revoked.
+The password for your CASH account was changed, and saved refresh sessions were revoked.
 An already-issued access token may remain valid until it expires. If you did not make this change,
 reset your password immediately.""",
     )
@@ -93,19 +93,19 @@ reset your password immediately.""",
 
 def email_changed_email(name: str) -> tuple[str, str]:
     return (
-        "Your Cashya email address was changed",
+        "Your CASH email address was changed",
         f"""Hi {name},
 
-The email address on your Cashya account was changed. The new address must be verified before
-financial emails are sent. If you did not make this change, contact Cashya support.""",
+The email address on your CASH account was changed. The new address must be verified before
+financial emails are sent. If you did not make this change, contact CASH support.""",
     )
 
 
 def first_card_email(name: str) -> tuple[str, str]:
     return (
-        "Your first card is ready in Cashya",
+        "Your first card is ready in CASH",
         f"""Congratulations, {name}!
 
-You added your first card to Cashya. Take a moment to review your expenses, check pending
+You added your first card to CASH. Take a moment to review your expenses, check pending
 payments, and set a budget that helps keep your finances in order.""",
     )

@@ -150,7 +150,7 @@ flowchart LR
 ## 📁 Estrutura do repositório
 
 ```text
-Cashya/
+cash/
 ├── app/                          # Rotas do Expo Router
 │   ├── _layout.tsx               # Layout raiz: providers, fontes, onboarding e login
 │   └── (tabs)/                   # As 4 abas principais
@@ -182,7 +182,7 @@ Cashya/
 │   │   ├── session.ts            #   Tokens no SecureStore e renovação automática
 │   │   ├── mappers.ts            #   Conversão app ⇄ API (datas, nulos, tipo de cartão)
 │   │   ├── signing.ts            #   Assinatura HMAC das requisições (opcional)
-│   │   └── index.ts              #   CashyaApi: auth, sync, expenses, cards
+│   │   └── index.ts              #   Cliente da API: auth, sync, expenses, cards
 │   ├── sync.ts                   # Fila offline e sincronização via /sync/batch
 │   ├── auth.ts                   # Cadastro, login, logout e recuperação de senha
 │   ├── storage.ts                # Acesso tipado ao AsyncStorage
@@ -233,8 +233,8 @@ Cashya/
 ### 1. Subir a API
 
 ```bash
-git clone https://github.com/yanjuca/Cashya.git
-cd Cashya/backend
+git clone https://github.com/yanjuca/Cashya.git cash
+cd cash/backend
 cp .env.example .env              # Windows PowerShell: Copy-Item .env.example .env
 docker compose up -d --build
 ```
@@ -333,7 +333,7 @@ Celular e computador precisam estar no mesmo Wi-Fi, e a porta 8000 precisa estar
 
 | Variável | Padrão | Descrição |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `sqlite:///./cashya.db` | Banco de dados. No Docker é sobrescrita para gravar no volume. Use `postgresql+psycopg://...` em produção. |
+| `DATABASE_URL` | SQLite local na pasta `backend/` | Banco de dados. No Docker é sobrescrita para gravar no volume. Use `postgresql+psycopg://...` em produção. |
 | `SECRET_KEY` | valor de exemplo | Chave dos tokens JWT, com no mínimo 32 caracteres. **Troque fora do ambiente local.** |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Validade do `accessToken`. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Validade do `refreshToken`. |
@@ -346,7 +346,7 @@ Celular e computador precisam estar no mesmo Wi-Fi, e a porta 8000 precisa estar
 | `REQUEST_SIGNING_SECRET` | vazio | Liga a assinatura HMAC das requisições (o app precisa da mesma chave). |
 | `MIN_CLIENT_VERSION` | vazio | Recusa versões do app mais antigas que esta. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | vazio / `587` | Servidor de e-mail. Vazio em `development` = e-mails aparecem no log. |
-| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` | vazio / `Cashya` | Remetente dos e-mails. |
+| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` | vazio / `CASH` | Remetente dos e-mails. |
 | `EMAIL_SCHEDULE_HOUR_UTC` | `12` | Hora (UTC) dos lembretes semanais e relatórios mensais. |
 
 A lista completa e comentada está em [`backend/.env.example`](backend/.env.example).
@@ -701,7 +701,7 @@ eas build -p android --profile production   # build de produção (Play Store)
 
 | Problema | Solução |
 | :--- | :--- |
-| *"Could not reach the Cashya server"* no celular | Use o IP do computador em `EXPO_PUBLIC_API_URL` (não `localhost`), confira se estão no mesmo Wi-Fi, libere a porta 8000 no firewall e reinicie o Expo. |
+| *"Não foi possível conectar ao servidor do CASH"* no celular | Use o IP do computador em `EXPO_PUBLIC_API_URL` (não `localhost`), confira se estão no mesmo Wi-Fi, libere a porta 8000 no firewall e reinicie o Expo. |
 | `docker compose` falha com erro de conexão | O Docker Desktop não está aberto. Abra-o e aguarde ficar "running". |
 | A API não sobe: `SECRET_KEY must contain at least 32 ...` | Crie o `backend/.env` a partir do `.env.example`, ou defina uma `SECRET_KEY` com 32 caracteres ou mais. |
 | *"Too many attempts"* (429) | Rate limit de autenticação: aguarde 1 minuto ou aumente `AUTH_RATE_LIMIT_ATTEMPTS` no `backend/.env`. |

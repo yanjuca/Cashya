@@ -137,7 +137,7 @@ Copie `.env.example` para `.env` e ajuste os valores:
 | `MAX_REQUEST_BODY_BYTES` | `1048576` | Tamanho máximo do corpo de requisições de escrita. |
 | `AUTH_RATE_LIMIT_ATTEMPTS` / `AUTH_RATE_LIMIT_WINDOW_SECONDS` | `10` / `60` | Rate limit por IP em login, cadastro e refresh. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | vazio / `587` | Servidor de saída SMTP; usuário e senha devem ser configurados juntos. |
-| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` | vazio / `Cashya` | Endereço e nome do remetente. E-mails ficam desativados até configurar host e remetente. |
+| `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME` | vazio / `CASH` | Endereço e nome do remetente. E-mails ficam desativados até configurar host e remetente. |
 | `SMTP_STARTTLS`, `SMTP_USE_SSL` | `true` / `false` | Transporte SMTP; use SSL implícito ou STARTTLS conforme o provedor. |
 | `EMAIL_SCHEDULE_HOUR_UTC` | `12` | Hora UTC para processar os lembretes semanais e relatórios mensais. |
 | `MONTHLY_REPORT_PROMPT` | mensagem padrão | Texto configurável incluído no relatório mensal. |

@@ -90,14 +90,14 @@ def run_due_email_jobs(now: datetime | None = None) -> None:
                         f"Hi {user.name},\n\n"
                         f"You have {len(pending)} pending expenses totaling {_amount(total_pending)}:\n\n"
                         + "\n".join(lines)
-                        + "\n\nOpen Cashya to review and update their status."
+                        + "\n\nOpen CASH to review and update their status."
                     )
                     dispatch_email_once(
                         db,
                         user,
                         "weekly_pending_digest",
                         week_key,
-                        "Your weekly Cashya pending-expense summary",
+                        "Your weekly CASH pending-expense summary",
                         body,
                     )
 
@@ -118,7 +118,7 @@ def run_due_email_jobs(now: datetime | None = None) -> None:
                 month_name = month_start.strftime("%B %Y")
                 body = (
                     f"Hi {user.name},\n\n"
-                    f"Your Cashya financial report for {month_name}:\n"
+                    f"Your CASH financial report for {month_name}:\n"
                     f"Expenses: {len(expenses)}\n"
                     f"Total: {_amount(total)}\n"
                     f"Paid: {_amount(paid)}\n"
@@ -130,7 +130,7 @@ def run_due_email_jobs(now: datetime | None = None) -> None:
                     user,
                     "monthly_financial_report",
                     month_key,
-                    f"Your Cashya financial report for {month_name}",
+                    f"Your CASH financial report for {month_name}",
                     body,
                 )
 

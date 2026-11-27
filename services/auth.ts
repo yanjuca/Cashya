@@ -62,7 +62,7 @@ const toAuthUser = (user: ApiUser): AuthUser => ({
 
 function friendlyError(error: unknown, fallback: string, byStatus: Record<number, string> = {}): string {
   if (!(error instanceof ApiError)) return fallback;
-  if (error.isNetworkError) return 'Could not reach the Cashya server. Check your connection and try again.';
+  if (error.isNetworkError) return 'Could not reach the CASH server. Check your connection and try again.';
   if (byStatus[error.status]) return byStatus[error.status];
   if (error.status === 429) return 'Too many attempts. Please wait a moment and try again.';
   if (error.status === 422 && error.details.length > 0) {

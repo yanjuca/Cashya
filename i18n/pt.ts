@@ -95,7 +95,7 @@ export const PT: Record<string, string> = {
   "Could not update your password. Please try again.": "Não foi possível atualizar sua senha. Tente novamente.",
   "This code is invalid or has expired. Request a new one.": "Este código é inválido ou expirou. Solicite um novo.",
   "Too many attempts. Please wait a moment and try again.": "Muitas tentativas. Aguarde um momento e tente novamente.",
-  "Could not reach the Cashya server. Check your connection and try again.": "Não foi possível conectar ao servidor do Cashya. Verifique sua conexão e tente novamente.",
+  "Could not reach the CASH server. Check your connection and try again.": "Não foi possível conectar ao servidor do CASH. Verifique sua conexão e tente novamente.",
   "Could not reach the server. Check your connection.": "Não foi possível conectar ao servidor. Verifique sua conexão.",
   "The server is having trouble right now. Please try again later.": "O servidor está com problemas no momento. Tente novamente mais tarde.",
   "Unexpected response from the server.": "Resposta inesperada do servidor.",

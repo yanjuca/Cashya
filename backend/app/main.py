@@ -109,7 +109,7 @@ async def security_middleware(request: Request, call_next) -> Response:
             return error_response("RATE_LIMITED", "Too many authentication attempts", status_code=429, headers={"Retry-After": str(retry_after)})
 
     if is_api and not client_version_allowed(request):
-        return error_response("UPGRADE_REQUIRED", "Please update the Cashya app to continue", status_code=426)
+        return error_response("UPGRADE_REQUIRED", "Please update the CASH app to continue", status_code=426)
 
     if is_api and signature_verifier.enabled and request.method != "OPTIONS":
         reason = signature_verifier.verify(request, await request.body())
