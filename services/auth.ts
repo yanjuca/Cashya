@@ -202,14 +202,31 @@ export const AuthService = {
     await CashyaApi.auth.logout();
   },
 
-  async requestPasswordReset(_email: string): Promise<AuthResult> {
-    return {
-      success: false,
-      message: 'Password recovery is not available yet. If you are logged in on another device, change it there in Settings.',
-    };
+  /** Sends a 6-digit code by e-mail (in local development without SMTP it shows up in the API log). */
+  async requestPasswordReset(email: string): Promise<AuthResult> {
+    try {
+      await CashyaApi.auth.requestPasswordReset(normalizeEmail(email));
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: friendlyError(error, 'Could not send the code. Please try again.') };
+    }
   },
 
-  async resetPassword(_payload: ResetPasswordPayload): Promise<AuthResult> {
-    return { success: false, message: 'Password recovery is not available yet.' };
+  async resetPassword(payload: ResetPasswordPayload): Promise<AuthResult> {
+    try {
+      await CashyaApi.auth.confirmPasswordReset({
+        email: normalizeEmail(payload.email),
+        code: payload.code.trim(),
+        newPassword: payload.newPassword,
+      });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: friendlyError(error, 'Could not reset your password. Please try again.', {
+          400: 'This code is invalid or has expired. Request a new one.',
+        }),
+      };
+    }
   },
 };
