@@ -1,5 +1,7 @@
 export type CardBrand = 'visa' | 'mastercard' | 'elo' | 'generic';
-export type CardType = 'Credit' | 'Debit' | 'Crédito' | 'Débito';
+// Single spelling shared with the API. Older builds stored 'Crédito'/'Débito'; those are converted on read
+// (StorageService.getCards, BackupService.restoreFromJson) with normalizeCardType.
+export type CardType = 'Credit' | 'Debit';
 
 export interface CreditCard {
   id: string;
