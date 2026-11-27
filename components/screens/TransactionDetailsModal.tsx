@@ -6,7 +6,6 @@ import {
   Easing,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -17,6 +16,8 @@ import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { Expense } from '../../types';
 import { formatCurrency, formatMonthYear } from '../../utils/formatters';
 import BottomSheetModal from '../ui/BottomSheetModal';
+import Text from '../ui/AppText';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface TransactionDetailsModalProps {
   visible: boolean;
@@ -157,6 +158,7 @@ export default function TransactionDetailsModal({
   onClose,
   onEdit,
 }: TransactionDetailsModalProps) {
+  const { locale } = useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { expenses, togglePaid } = useExpenses();
@@ -313,14 +315,15 @@ export default function TransactionDetailsModal({
 
   const isRecurring = !!activeExpense.recurring || !!activeExpense.recurringSourceId;
 
-  const formattedDate = activeExpense.date.toLocaleDateString('en-US', {
+  const longDate = activeExpense.date.toLocaleDateString(locale, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
     year: 'numeric',
   });
+  const formattedDate = longDate.charAt(0).toUpperCase() + longDate.slice(1);
 
-  const formattedShortDate = activeExpense.date.toLocaleDateString('en-US', {
+  const formattedShortDate = activeExpense.date.toLocaleDateString(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -360,7 +363,7 @@ export default function TransactionDetailsModal({
       }
     >
             <View style={styles.heroSection}>
-              <Text style={styles.heroAmount}>{formatCurrency(activeExpense.amount)}</Text>
+              <Text style={styles.heroAmount}>{formatCurrency(activeExpense.amount, '$', locale)}</Text>
               <Text style={styles.heroDescription}>{activeExpense.description}</Text>
 
               <View style={styles.heroPillRow}>
@@ -441,7 +444,7 @@ export default function TransactionDetailsModal({
                         {stats.monthPercentage.toFixed(1)}%
                       </Text>
                       <Text style={styles.insightMetricSub}>
-                        of {formatCurrency(stats.monthTotal)}
+                        of {formatCurrency(stats.monthTotal, '$', locale)}
                       </Text>
                     </View>
                   )}
@@ -798,6 +801,7 @@ function createStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      flexShrink: 0,
     },
     specLabel: {
       fontFamily: FONTS.ndotCaps || FONTS.system,
@@ -814,7 +818,9 @@ function createStyles(colors: ThemeColors) {
       fontFamily: FONTS.regular,
       fontSize: 12,
       color: colors.textSecondary,
-      textTransform: 'capitalize',
+      flexShrink: 1,
+      marginLeft: 12,
+      textAlign: 'right',
     },
     specDivider: {
       height: 1,

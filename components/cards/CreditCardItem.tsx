@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { CreditCard } from '../../contexts/CardsContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { FONTS, hexToRgba, ThemeColors } from '../../theme';
+import Text from '../ui/AppText';
 
 interface CreditCardItemProps {
   card: CreditCard;

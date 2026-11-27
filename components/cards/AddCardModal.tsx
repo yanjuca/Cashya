@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -12,6 +10,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { CardBrand, CardType, CreditCard } from '../../types';
 import BottomSheetModal from '../ui/BottomSheetModal';
+import Text from '../ui/AppText';
+import TextInput from '../ui/AppTextInput';
 
 interface AddCardModalProps {
   visible: boolean;

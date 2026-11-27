@@ -6,15 +6,15 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCards } from '../../contexts/CardsContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BackupService } from '../../services/backup';
 import { StorageService } from '../../services/storage';
@@ -25,12 +25,25 @@ import { formatCurrency } from '../../utils/formatters';
 import AddCardModal from '../cards/AddCardModal';
 import BottomSheetModal from '../ui/BottomSheetModal';
 import ToggleRow from '../ui/ToggleRow';
+import Text from '../ui/AppText';
+import TextInput from '../ui/AppTextInput';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { Language } from '../../i18n';
 
 export interface SettingsScreenProps {
   onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
 }
 
+const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'pt', label: 'Português' },
+];
+
 export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
+  const { locale, language, setLanguage } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const { open: openOnboarding } = useOnboarding();
+  const androidBottomInset = Platform.OS === 'android' ? insets.bottom : 0;
   const { showAlert } = useAlert();
   const { cards, removeCard, reloadCards } = useCards();
   const { reloadExpenses, resetExpenses } = useExpenses();
@@ -62,6 +75,16 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         Haptics.impactAsync(style);
       } catch {}
     }
+  };
+
+  const handleSelectLanguage = (next: Language) => {
+    if (next === language) return;
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {}
+    }
+    setLanguage(next);
   };
 
   const handleSelectThemeMode = (mode: ThemeMode) => {
@@ -232,7 +255,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
       <StatusBar barStyle={colors.statusBar} />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 + androidBottomInset }]}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -448,6 +471,37 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>LANGUAGE</Text>
+
+          <View style={styles.appearanceCard}>
+            <View style={styles.themeModeRow}>
+              {LANGUAGE_OPTIONS.map((option) => {
+                const isActive = language === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.themeModeBtn, isActive && styles.themeModeBtnActive]}
+                    onPress={() => handleSelectLanguage(option.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="language-outline"
+                      size={16}
+                      color={isActive ? colors.primaryText : colors.textSecondary}
+                    />
+                    <Text
+                      style={[styles.themeModeBtnText, isActive && styles.themeModeBtnTextActive]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>MY CARDS</Text>
             <TouchableOpacity
@@ -481,7 +535,7 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
                   </View>
 
                   <View style={styles.cardInfoRight}>
-                    <Text style={styles.cardLimit}>{formatCurrency(card.limit)}</Text>
+                    <Text style={styles.cardLimit}>{formatCurrency(card.limit, '$', locale)}</Text>
                     <TouchableOpacity
                       onPress={() => handleRemoveCard(card)}
                       style={styles.cardDeleteBtn}
@@ -524,6 +578,19 @@ export default function SettingsScreen({ onScroll }: SettingsScreenProps = {}) {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>HELP</Text>
+
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={openOnboarding}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="book-outline" size={18} color={colors.text} />
+            <Text style={styles.helpButtonText}>Replay Tutorial</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -919,6 +986,22 @@ function createStyles(colors: ThemeColors) {
       fontFamily: FONTS.medium,
       color: colors.text,
       fontWeight: '600',
+      fontSize: 13,
+    },
+    helpButton: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.cardBackgroundLight,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: 8,
+    },
+    helpButtonText: {
+      fontFamily: FONTS.medium,
+      color: colors.text,
       fontSize: 13,
     },
     dangerButton: {

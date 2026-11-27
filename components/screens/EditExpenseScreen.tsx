@@ -4,8 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -17,6 +15,9 @@ import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { Expense } from '../../types';
 import BottomSheetModal from '../ui/BottomSheetModal';
 import RecurringToggle from '../ui/RecurringToggle';
+import Text from '../ui/AppText';
+import TextInput from '../ui/AppTextInput';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface EditExpenseScreenProps {
   visible?: boolean;
@@ -29,6 +30,7 @@ const MIN_ALLOWED_DATE = new Date(CURRENT_YEAR - 5, 0, 1);
 const MAX_ALLOWED_DATE = new Date(CURRENT_YEAR + 5, 11, 31, 23, 59, 59);
 
 export default function EditExpenseScreen({ visible = true, expense, onClose }: EditExpenseScreenProps) {
+  const { locale } = useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAlert();
@@ -294,7 +296,7 @@ export default function EditExpenseScreen({ visible = true, expense, onClose }: 
       >
         <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
         <Text style={styles.dateText}>
-          {date.toLocaleDateString('en-US', {
+          {date.toLocaleDateString(locale, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Platform } from 'react-native';
+import { translate } from '../i18n';
 
 const BIOMETRIC_PREF_KEY = '@cashya:biometric_pref';
 
@@ -43,8 +44,8 @@ export const BiometricService = {
   async authenticate(promptMessage: string): Promise<boolean> {
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage,
-        cancelLabel: 'Use password',
+        promptMessage: translate(promptMessage),
+        cancelLabel: translate('Use password'),
         disableDeviceFallback: true,
       });
       return result.success;

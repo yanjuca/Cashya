@@ -7,15 +7,19 @@ import {
   BackHandler,
   Easing,
   Modal,
+  NativeSyntheticEvent,
   Platform,
   StatusBar,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import PagerView, { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PagerView, {
+  PageScrollStateChangedNativeEventData,
+  PagerViewOnPageScrollEvent,
+  PagerViewOnPageSelectedEvent,
+} from 'react-native-pager-view';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddCardModal from '../../components/cards/AddCardModal';
 import AddExpenseScreen from '../../components/screens/AddExpenseScreen';
 import SettingsScreen from '../../components/screens/SettingsScreen';
@@ -27,6 +31,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { useExpenses } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, hexToRgba, ThemeColors } from '../../theme';
+import Text from '../../components/ui/AppText';
 
 interface TabItemConfig {
   key: string;
@@ -67,13 +72,19 @@ const TABS: TabItemConfig[] = [
   },
 ];
 
+const EMPTY_SELECTION: Set<string> = new Set();
+
 export default function TabsLayout() {
   const pagerRef = useRef<PagerView>(null);
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'android' ? insets.bottom : 0;
   const { removeExpenses } = useExpenses();
   const { showAlert } = useAlert();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [currentPage, setCurrentPage] = useState(0);
+  const currentPageRef = useRef(0);
+  const tabPressTargetRef = useRef<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [isCalendarSwiping, setIsCalendarSwiping] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -135,7 +146,7 @@ export default function TabsLayout() {
 
   const handleScroll = (pageIndex: number, y: number) => {
     scrollYMap.current[pageIndex] = y;
-    if (pageIndex === currentPage) {
+    if (pageIndex === currentPageRef.current) {
       topGradientAnim.setValue(calculateOpacity(y));
     }
   };
@@ -240,12 +251,10 @@ export default function TabsLayout() {
     });
   };
 
-  const handleTabPress = (index: number) => {
-    if (isEditMode) {
-      handleExitEditMode();
-    }
+  const syncPage = (index: number) => {
+    if (index === currentPageRef.current) return;
+    currentPageRef.current = index;
     setCurrentPage(index);
-    pagerRef.current?.setPage(index);
     Animated.timing(topGradientAnim, {
       toValue: calculateOpacity(scrollYMap.current[index] || 0),
       duration: 150,
@@ -253,19 +262,41 @@ export default function TabsLayout() {
     }).start();
   };
 
-  const handlePageSelected = (e: PagerViewOnPageSelectedEvent) => {
-    const nextIndex = e.nativeEvent.position;
+  const handleTabPress = (index: number) => {
     if (isEditMode) {
       handleExitEditMode();
     }
-    if (nextIndex !== currentPage) {
-      setCurrentPage(nextIndex);
-      Animated.timing(topGradientAnim, {
-        toValue: calculateOpacity(scrollYMap.current[nextIndex] || 0),
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+    if (index !== currentPageRef.current) {
+      tabPressTargetRef.current = index;
     }
+    syncPage(index);
+    pagerRef.current?.setPage(index);
+  };
+
+  const handlePageScroll = (e: PagerViewOnPageScrollEvent) => {
+    if (tabPressTargetRef.current !== null) return;
+    const { position, offset } = e.nativeEvent;
+    syncPage(offset > 0.5 ? position + 1 : position);
+  };
+
+  const handlePageScrollStateChanged = (
+    e: NativeSyntheticEvent<PageScrollStateChangedNativeEventData>
+  ) => {
+    if (e.nativeEvent.pageScrollState === 'dragging') {
+      tabPressTargetRef.current = null;
+    }
+  };
+
+  const handlePageSelected = (e: PagerViewOnPageSelectedEvent) => {
+    const position = e.nativeEvent.position;
+    if (tabPressTargetRef.current === position) {
+      tabPressTargetRef.current = null;
+    }
+    if (tabPressTargetRef.current !== null) return;
+    if (isEditMode) {
+      handleExitEditMode();
+    }
+    syncPage(position);
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -349,6 +380,8 @@ export default function TabsLayout() {
         ref={pagerRef}
         style={styles.pager}
         initialPage={0}
+        onPageScroll={handlePageScroll}
+        onPageScrollStateChanged={handlePageScrollStateChanged}
         onPageSelected={handlePageSelected}
         offscreenPageLimit={3}
         scrollEnabled={!isCalendarSwiping && !isEditMode}
@@ -357,7 +390,7 @@ export default function TabsLayout() {
           <WalletHomeScreen
             onScroll={(e) => handleScroll(0, e.nativeEvent.contentOffset.y)}
             isEditMode={currentPage === 0 && isEditMode}
-            selectedExpenseIds={currentPage === 0 ? selectedExpenseIds : new Set()}
+            selectedExpenseIds={currentPage === 0 ? selectedExpenseIds : EMPTY_SELECTION}
             onToggleSelect={handleToggleSelect}
             onStartEditMode={handleStartEditMode}
           />
@@ -413,12 +446,12 @@ export default function TabsLayout() {
           colors.background,
         ]}
         locations={[0, 0.3, 0.65, 1]}
-        style={styles.bottomGradient}
+        style={[styles.bottomGradient, { height: 140 + bottomInset }]}
         pointerEvents="none"
       />
 
       {/* Floating Bottom Navigation Bar / Edit Action Dock */}
-      <Animated.View style={[styles.tabBar, { height: dockHeight }]}>
+      <Animated.View style={[styles.tabBar, { height: dockHeight, bottom: 10 + bottomInset }]}>
         {/* Top Tier: Batch Selection Bar (slides in & fades when entering edit mode) */}
         <Animated.View
           style={[
@@ -522,7 +555,7 @@ export default function TabsLayout() {
       {/* Speed Dial Floating Action Button */}
       <FAB
         visible={isFabVisible}
-        bottomOffset={95}
+        bottomOffset={95 + bottomInset}
         actions={[
           {
             id: 'card',

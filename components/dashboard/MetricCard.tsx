@@ -4,11 +4,11 @@ import {
   Easing,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
+import Text from '../ui/AppText';
 
 interface MetricCardProps {
   label: string;

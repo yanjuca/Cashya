@@ -9,13 +9,13 @@ import {
   Pressable,
   StyleProp,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
+import Text from './AppText';
 
 export interface SpeedDialAction {
   id: string;

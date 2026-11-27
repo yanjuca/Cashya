@@ -7,13 +7,13 @@ import {
   Modal,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, SPACING, ThemeColors } from '../../theme';
+import Text from './AppText';
 
 const { width } = Dimensions.get('window');
 
