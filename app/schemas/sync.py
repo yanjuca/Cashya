@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 
 from app.schemas.card import CardRead
 from app.schemas.common import CamelModel, parse_iso_datetime
-from app.schemas.expenses import ExpenseRead
+from app.schemas.expenses import MAX_RECURRING_MONTHS, MAX_SKIPPED_MONTHS, ExpenseRead, normalize_skipped_months
 
 MutationType = Literal[
     "CREATE_EXPENSE",
@@ -87,10 +87,15 @@ class BackupExpense(CamelModel):
     paid: bool = False
     source: Literal["manual", "notification", "import"] | None = None
     card_id: str | None = None
+    recurring: bool = False
+    recurring_months: int | None = Field(default=None, ge=0, le=MAX_RECURRING_MONTHS)
+    recurring_source_id: str | None = Field(default=None, max_length=36)
+    skipped_months: list[str] = Field(default_factory=list, max_length=MAX_SKIPPED_MONTHS)
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
     _date = field_validator("date", mode="before")(parse_iso_datetime)
+    _skipped = field_validator("skipped_months", mode="before")(normalize_skipped_months)
     _created = field_validator("created_at", mode="before")(parse_iso_datetime)
     _updated = field_validator("updated_at", mode="before")(parse_iso_datetime)
 

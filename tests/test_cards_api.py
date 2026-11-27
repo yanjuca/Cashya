@@ -80,6 +80,17 @@ def test_card_crud_and_wallet_summary(client, auth_headers):
     assert all(item["cardId"] is None for item in expenses)
 
 
+def test_card_type_accepts_portuguese_labels(client, auth_headers):
+    for label, expected in (("Crédito", "Credit"), ("débito", "Debit"), ("credito", "Credit"), ("DEBIT", "Debit")):
+        payload = {key: value for key, value in CARD.items() if key != "id"} | {"type": label}
+        created = client.post(f"{API}/cards", json=payload, headers=auth_headers)
+        assert created.status_code == 201, created.text
+        assert created.json()["data"]["type"] == expected
+    patched = client.patch(f"{API}/cards/{created.json()['data']['id']}", json={"type": "Crédito"}, headers=auth_headers)
+    assert patched.json()["data"]["type"] == "Credit"
+    assert client.post(f"{API}/cards", json={**CARD, "id": None, "type": "Prepaid"}, headers=auth_headers).status_code == 422
+
+
 def test_card_validation_rules(client, auth_headers):
     invalid = client.post(f"{API}/cards", json={**CARD, "id": None, "lastDigits": "12345", "expiryDate": "13/28", "colorAccent": "red"}, headers=auth_headers)
     assert invalid.status_code == 422

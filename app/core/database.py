@@ -50,6 +50,10 @@ def create_tables() -> None:
             "deleted_at": "DATETIME NULL",
             "card_id": "VARCHAR(36) NULL REFERENCES cards(id) ON DELETE SET NULL",
             "group_id": "VARCHAR(36) NULL REFERENCES groups(id) ON DELETE SET NULL",
+            "recurring": "BOOLEAN NOT NULL DEFAULT FALSE",
+            "recurring_months": "INTEGER NULL",
+            "recurring_source_id": "VARCHAR(36) NULL",
+            "skipped_months": "JSON NOT NULL DEFAULT '[]'",
         },
     )
     _upgrade_columns(

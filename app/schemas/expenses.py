@@ -1,3 +1,4 @@
+import re
 from datetime import date as DateType
 from datetime import datetime
 from decimal import Decimal
@@ -12,6 +13,11 @@ ExpenseStatus = Literal["all", "pending", "paid"]
 
 TAG_MAX_LENGTH = 40
 MAX_TAGS = 30
+# Same cap as the app's RecurringToggle; 0/None means "repeat with no end".
+MAX_RECURRING_MONTHS = 120
+MAX_SKIPPED_MONTHS = 240
+# The app's monthKey(): `${year}-${month}` with a 1-based, non-padded month (e.g. "2026-1", "2026-11").
+MONTH_KEY_PATTERN = re.compile(r"^\d{4}-(?:[1-9]|1[0-2])$")
 
 
 def normalize_tags(value: object) -> object:
@@ -31,6 +37,21 @@ def normalize_tags(value: object) -> object:
     return tags
 
 
+def normalize_skipped_months(value: object) -> object:
+    """Validate month keys and drop duplicates, keeping the app's exact spelling so its lookups still match."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return value
+    months: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not MONTH_KEY_PATTERN.match(item.strip()):
+            raise ValueError("each skipped month must look like YYYY-M (e.g. 2026-1 or 2026-11)")
+        if item.strip() not in months:
+            months.append(item.strip())
+    return months
+
+
 class ExpenseBase(CamelModel):
     description: str = Field(min_length=1, max_length=255)
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
@@ -41,9 +62,14 @@ class ExpenseBase(CamelModel):
     source: ExpenseSource = "manual"
     card_id: str | None = Field(default=None, max_length=36)
     group_id: str | None = Field(default=None, max_length=36)
+    recurring: bool = False
+    recurring_months: int | None = Field(default=None, ge=0, le=MAX_RECURRING_MONTHS)
+    recurring_source_id: str | None = Field(default=None, min_length=1, max_length=36)
+    skipped_months: list[str] = Field(default_factory=list, max_length=MAX_SKIPPED_MONTHS)
 
     _date = field_validator("date", mode="before")(parse_iso_datetime)
     _tags = field_validator("tags", mode="before")(normalize_tags)
+    _skipped = field_validator("skipped_months", mode="before")(normalize_skipped_months)
 
 
 class ExpenseCreate(ExpenseBase):
@@ -66,9 +92,14 @@ class ExpensePatch(CamelModel):
     source: ExpenseSource | None = None
     card_id: str | None = Field(default=None, max_length=36)
     group_id: str | None = Field(default=None, max_length=36)
+    recurring: bool | None = None
+    recurring_months: int | None = Field(default=None, ge=0, le=MAX_RECURRING_MONTHS)
+    recurring_source_id: str | None = Field(default=None, min_length=1, max_length=36)
+    skipped_months: list[str] | None = Field(default=None, max_length=MAX_SKIPPED_MONTHS)
 
     _date = field_validator("date", mode="before")(parse_iso_datetime)
     _tags = field_validator("tags", mode="before")(normalize_tags)
+    _skipped = field_validator("skipped_months", mode="before")(normalize_skipped_months)
 
 
 class ExpenseRead(CamelModel):
@@ -83,9 +114,24 @@ class ExpenseRead(CamelModel):
     source: str
     card_id: str | None = None
     group_id: str | None = None
+    recurring: bool = False
+    recurring_months: int | None = None
+    recurring_source_id: str | None = None
+    skipped_months: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+
+    # Rows created before the recurrence columns existed may hold NULLs.
+    @field_validator("recurring", mode="before")
+    @classmethod
+    def _recurring_default(cls, value: object) -> object:
+        return False if value is None else value
+
+    @field_validator("skipped_months", mode="before")
+    @classmethod
+    def _skipped_default(cls, value: object) -> object:
+        return [] if value is None else value
 
 
 class ExpenseListData(CamelModel):

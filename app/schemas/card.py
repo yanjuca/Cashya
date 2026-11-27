@@ -19,8 +19,21 @@ def normalize_brand(value: object) -> object:
     return value.lower() if isinstance(value, str) else value
 
 
+# The app stores "Credit"/"Debit", but older builds and backups also carry the Portuguese labels.
+CARD_TYPE_ALIASES = {
+    "credit": "Credit",
+    "crédito": "Credit",
+    "credito": "Credit",
+    "debit": "Debit",
+    "débito": "Debit",
+    "debito": "Debit",
+}
+
+
 def normalize_type(value: object) -> object:
-    return value.capitalize() if isinstance(value, str) else value
+    if not isinstance(value, str):
+        return value
+    return CARD_TYPE_ALIASES.get(value.strip().lower(), value)
 
 
 class CardBase(CamelModel):

@@ -115,3 +115,36 @@ def test_import_and_export_backup(client, auth_headers):
     assert exported["exportedAt"].endswith("Z")
     assert [card["id"] for card in exported["cards"]] == [CARD_ID]
     assert {item["id"] for item in exported["expenses"]} == {EXPENSE_ID, OTHER_ID}
+
+
+def test_backup_keeps_recurrence_and_portuguese_card_type(client, auth_headers):
+    CARD_ID, ORIGIN_ID = str(uuid4()), f"o{uuid4().hex[:20]}"
+    COPY_ID = f"{ORIGIN_ID}-r-2026-10"
+    backup = {
+        "version": "1.0.0",
+        "exportedAt": "2026-09-21T13:30:00.000Z",
+        "cards": [{"id": CARD_ID, "holderName": "NUBANK", "brand": "elo", "type": "Débito", "lastDigits": "9876", "expiryDate": "01/30", "limit": 0}],
+        "expenses": [
+            {"id": ORIGIN_ID, "description": "Aluguel", "amount": 1500, "person": "Yan", "date": "2026-09-05T12:00:00.000Z", "tags": ["Casa"], "paid": True, "recurring": True, "recurringMonths": 12, "skippedMonths": ["2026-12"]},
+            {"id": COPY_ID, "description": "Aluguel", "amount": 1500, "person": "Yan", "date": "2026-10-05T12:00:00.000Z", "tags": ["Casa"], "paid": False, "recurring": False, "recurringSourceId": ORIGIN_ID},
+        ],
+    }
+    assert client.post(f"{API}/sync/import-backup", json=backup, headers=auth_headers).status_code == 200
+
+    exported = client.get(f"{API}/sync/export-backup", headers=auth_headers).json()["data"]
+    assert exported["cards"][0]["type"] == "Debit"
+    by_id = {item["id"]: item for item in exported["expenses"]}
+    assert (by_id[ORIGIN_ID]["recurring"], by_id[ORIGIN_ID]["recurringMonths"], by_id[ORIGIN_ID]["skippedMonths"]) == (True, 12, ["2026-12"])
+    assert by_id[COPY_ID]["recurringSourceId"] == ORIGIN_ID
+
+
+def test_sync_batch_carries_recurring_fields(client, auth_headers):
+    origin_id = f"o{uuid4().hex[:20]}"
+    mutations = [
+        {"type": "CREATE_EXPENSE", "data": {"id": origin_id, "description": "Academia", "amount": 99.9, "person": "Yan", "date": "2026-09-01T10:00:00.000Z", "recurring": True, "recurringMonths": 0}},
+        {"type": "UPDATE_EXPENSE", "id": origin_id, "data": {"skippedMonths": ["2026-10"]}},
+    ]
+    result = client.post(f"{API}/sync/batch", json={"lastSyncTimestamp": None, "mutations": mutations}, headers=auth_headers).json()["data"]
+    assert result["conflicts"] == []
+    synced = next(item for item in result["serverChanges"]["expenses"] if item["id"] == origin_id)
+    assert (synced["recurring"], synced["recurringMonths"], synced["skippedMonths"]) == (True, 0, ["2026-10"])
