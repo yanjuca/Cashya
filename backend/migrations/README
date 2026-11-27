@@ -1,0 +1,9 @@
+Alembic migration directory.
+
+Run migrations from `cashya-api` with:
+
+```powershell
+alembic upgrade head
+```
+
+The API still creates missing tables for local development, but production and shared environments should use Alembic.
