@@ -1,6 +1,6 @@
-# Cashya Backend
+# Backend do CASH
 
-API do Cashya para despesas pessoais e compartilhadas, construída com FastAPI, SQLAlchemy e SQLite (PostgreSQL em produção). Implementa o contrato descrito em `BACKEND_SPEC.md`: autenticação multi-dispositivo, cartões, despesas com tags, grupos, sincronização offline-first (`sync/batch`) e importação/exportação de backup. O repositório também contém o aplicativo mobile Expo/React Native que consome esta API.
+API do CASH para despesas pessoais e compartilhadas, construída com FastAPI, SQLAlchemy e SQLite (PostgreSQL em produção). Implementa o contrato descrito em `BACKEND_SPEC.md`: autenticação multi-dispositivo, cartões, despesas com tags, grupos, sincronização offline-first (`sync/batch`) e importação/exportação de backup. O repositório também contém o aplicativo mobile Expo/React Native que consome esta API.
 
 ## Visão geral
 
@@ -72,7 +72,7 @@ Esta versão adapta o backend ao `BACKEND_SPEC.md` (modelo local-first → nuvem
 ## Estrutura do projeto
 
 ```text
-Cashya/                        # raiz do repositório = aplicativo Expo/React Native
+cash/                          # raiz do repositório = aplicativo Expo/React Native
 ├── app/, components/, contexts/
 ├── services/api/              # Cliente TypeScript da API (/api/v1), sessão e conversões
 ├── services/sync.ts           # Fila offline enviada por POST /sync/batch
@@ -128,11 +128,11 @@ Copie `.env.example` para `.env` e ajuste os valores:
 
 | Variável | Padrão | Descrição |
 | --- | --- | --- |
-| `DATABASE_URL` | `sqlite:///./cashya.db` | URL de conexão do SQLAlchemy (ex.: `postgresql+psycopg://...`). |
+| `DATABASE_URL` | SQLite local na pasta `backend/` | URL de conexão do SQLAlchemy (ex.: `postgresql+psycopg://...`). |
 | `SECRET_KEY` | vazio | Chave de assinatura do JWT; exige pelo menos 32 caracteres imprevisíveis. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Vida do `accessToken`, entre 5 e 1440 minutos. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Vida do `refreshToken`, entre 1 e 365 dias. |
-| `JWT_ISSUER` / `JWT_AUDIENCE` | `cashya-api` / `cashya-app` | Emissor e público validados no JWT. |
+| `JWT_ISSUER` / `JWT_AUDIENCE` | definidos no `.env.example` | Emissor e público validados no JWT. |
 | `CORS_ORIGINS` | `http://localhost:8081,http://127.0.0.1:8081` | Origens permitidas separadas por vírgula. |
 | `MAX_REQUEST_BODY_BYTES` | `1048576` | Tamanho máximo do corpo de requisições de escrita. |
 | `AUTH_RATE_LIMIT_ATTEMPTS` / `AUTH_RATE_LIMIT_WINDOW_SECONDS` | `10` / `60` | Rate limit por IP em login, cadastro e refresh. |
@@ -169,7 +169,7 @@ O startup também cria tabelas/colunas ausentes em bancos SQLite locais, mas em 
 
 ## Docker
 
-A imagem usa build em duas etapas, roda como usuário sem privilégios (`cashya`), tem healthcheck em `/api/v1/health` e grava o SQLite em `/app/data` (volume). O `.dockerignore` impede que `.env` e bancos locais entrem na imagem.
+A imagem usa build em duas etapas, roda como usuário sem privilégios (sem root), tem healthcheck em `/api/v1/health` e grava o SQLite em `/app/data` (volume). O `.dockerignore` impede que `.env` e bancos locais entrem na imagem.
 
 ### Com Docker Compose (recomendado)
 
@@ -180,7 +180,7 @@ docker compose up -d --build
 docker compose logs -f api
 ```
 
-A API fica em <http://127.0.0.1:8000>. Os dados ficam no volume `cashya-data` e sobrevivem a `docker compose down` (use `docker compose down -v` para apagar).
+A API fica em <http://127.0.0.1:8000>. Os dados ficam num volume do Docker e sobrevivem a `docker compose down` (use `docker compose down -v` para apagar).
 
 Migrações (deploy em produção ou banco vindo de versão anterior):
 
@@ -192,8 +192,8 @@ docker compose run --rm api alembic upgrade head
 
 ```powershell
 cd backend
-docker build -t cashya-api .
-docker run -d --name cashya-api -p 8000:8000 --env-file .env -e DATABASE_URL=sqlite:////app/data/cashya.db -v cashya-data:/app/data cashya-api
+docker build -t cash-api .
+docker run -d --name cash-api -p 8000:8000 --env-file .env -e DATABASE_URL=sqlite:////app/data/cash.db -v cash-data:/app/data cash-api
 ```
 
 > No Android Emulator a API continua em `http://10.0.2.2:8000`; em aparelho físico use o IP da máquina na rede local.
@@ -345,7 +345,7 @@ Um backend público pode ser "mapeado" por quem tenta clonar o app, replicar req
 
 | Defesa | Como funciona | Configuração |
 | --- | --- | --- |
-| Assinatura de requisições (HMAC-SHA256) | O app envia `X-Cashya-Signature`, `X-Cashya-Timestamp` e `X-Cashya-Nonce`. A assinatura cobre `MÉTODO
+| Assinatura de requisições (HMAC-SHA256) | O app envia três cabeçalhos: assinatura, carimbo de tempo e nonce (nomes definidos em `app/core/hardening.py`). A assinatura cobre `MÉTODO
 PATH
 TIMESTAMP
 NONCE
@@ -353,7 +353,7 @@ SHA256(BODY)` com um segredo compartilhado; requisições sem assinatura, com co
 | Versão mínima do cliente | Builds antigas/vazadas do app são recusadas com `426 UPGRADE_REQUIRED`. O app envia `X-Client-Version` a partir do `app.json`. | `MIN_CLIENT_VERSION=1.2.0` |
 | Docs ocultos em produção | `/docs`, `/redoc` e `/api/v1/openapi.json` não existem quando `ENVIRONMENT=production` (ou `EXPOSE_DOCS=false`). | `ENVIRONMENT`, `EXPOSE_DOCS` |
 | Rate limit global | Limite por IP em todas as rotas `/api/v1` (além do limite específico de auth). | `GLOBAL_RATE_LIMIT_PER_MINUTE` (0 desliga); `TRUST_PROXY_HEADERS=true` só atrás de proxy confiável. |
-| Sem fingerprint / sem vazamento | Header `Server: cashya` no lugar de `uvicorn`; erros inesperados retornam `500 INTERNAL_ERROR` genérico (detalhes só no log); CSP `default-src 'none'`, `X-Robots-Tag: noindex`, `Cross-Origin-Resource-Policy`. | Automático; `HSTS_ENABLED=true` quando houver HTTPS. |
+| Sem fingerprint / sem vazamento | Header `Server` com nome genérico no lugar de `uvicorn`; erros inesperados retornam `500 INTERNAL_ERROR` genérico (detalhes só no log); CSP `default-src 'none'`, `X-Robots-Tag: noindex`, `Cross-Origin-Resource-Policy`. | Automático; `HSTS_ENABLED=true` quando houver HTTPS. |
 | Anti-enumeração por tempo | O login verifica um hash fictício quando o e-mail não existe, então "usuário inexistente" e "senha errada" demoram o mesmo e respondem igual. | Automático. |
 
 ### Como ativar a assinatura

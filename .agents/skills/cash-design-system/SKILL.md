@@ -1,18 +1,18 @@
 ---
-name: cashya-design-system
+name: cash-design-system
 description: >-
-  Use this skill whenever creating, modifying, styling, or reviewing UI components, screens, modals, or visual elements in Cashya to adhere strictly to the Nothing OS aesthetic and design system tokens.
+  Use this skill whenever creating, modifying, styling, or reviewing UI components, screens, modals, or visual elements in CASH to adhere strictly to the Nothing OS aesthetic and design system tokens.
 ---
 
-# Cashya Design System & UI Skill
+# CASH Design System & UI Skill
 
-This skill guides the construction and maintenance of user interfaces in **Cashya**, ensuring 100% adherence to its signature **Nothing OS / Retro-Futuristic OLED Dark** aesthetic and preventing visual deviations or hallucinations.
+This skill guides the construction and maintenance of user interfaces in **CASH**, ensuring 100% adherence to its signature **Nothing OS / Retro-Futuristic OLED Dark** aesthetic and preventing visual deviations or hallucinations.
 
 ---
 
 ## 1. Quick Token Import
 
-Every UI component in Cashya must import and use tokens from `theme.ts`:
+Every UI component in CASH must import and use tokens from `theme.ts`:
 
 ```typescript
 import { BORDER_RADIUS, COLORS, FONT_SIZES, FONTS, SPACING } from '../../theme';
@@ -43,7 +43,7 @@ import { BORDER_RADIUS, COLORS, FONT_SIZES, FONTS, SPACING } from '../../theme';
 
 ## 3. Typography Rules
 
-Cashya uses two distinct font families:
+CASH uses two distinct font families:
 1. **Dot-Matrix (`Ndot57` / `Ndot57Caps`)**:
    - `FONTS.ndot` (`'Ndot57'`): Used for currency amounts (`$ 240.00`), numerical values, dates in dot matrix, and branding.
    - `FONTS.ndotCaps` (`'Ndot57Caps'`): Used for uppercase section headers (`TRANSACTIONS`, `LIMIT INSIGHTS`).
@@ -57,7 +57,7 @@ Cashya uses two distinct font families:
 
 ## 4. Language & Copy Standards (Strict English UI)
 
-All user-facing copy in Cashya must be strictly in **English**:
+All user-facing copy in CASH must be strictly in **English**:
 - **UI Labels & Section Headers**:
   - Dot-matrix uppercase titles: `TRANSACTIONS`, `FURTHER INSIGHTS`, `MY CARDS`, `BACKUP & RESTORE (OFFLINE-FIRST)`.
   - Spec sheet labels: `RESPONSIBLE`, `FULL DATE`, `METHOD / CARD`, `RECORD SOURCE`, `ATTACHED TAGS`.
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
 ```
 
 ### Recipe E: Standard Bottom-Sheet Modal Pattern (`AddCardModal` / `AddExpenseScreen` pattern)
-All modals in Cashya follow the same bottom-sheet dialog archetype:
+All modals in CASH follow the same bottom-sheet dialog archetype:
 ```typescript
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
