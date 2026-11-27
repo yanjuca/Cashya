@@ -2,7 +2,10 @@ import { PT, PT_PATTERNS } from './pt';
 
 export type Language = 'en' | 'pt';
 
-let currentLanguage: Language = 'en';
+/** The app opens in Portuguese; the choice made in Settings → Language is saved and used from then on. */
+export const DEFAULT_LANGUAGE: Language = 'pt';
+
+let currentLanguage: Language = DEFAULT_LANGUAGE;
 
 export function getLanguage(): Language {
   return currentLanguage;

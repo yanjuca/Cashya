@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  detectDeviceLanguage,
+  DEFAULT_LANGUAGE,
   Language,
   localeFor,
   setCurrentLanguage,
@@ -18,10 +18,11 @@ export interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Device detection is unreliable inside Expo Go (iOS always reports English), so start in Portuguese
+  // and let the saved choice from Settings → Language take over below.
   const [language, setLanguageState] = useState<Language>(() => {
-    const initial = detectDeviceLanguage();
-    setCurrentLanguage(initial);
-    return initial;
+    setCurrentLanguage(DEFAULT_LANGUAGE);
+    return DEFAULT_LANGUAGE;
   });
 
   useEffect(() => {
