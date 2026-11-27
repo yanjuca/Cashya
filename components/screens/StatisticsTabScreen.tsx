@@ -2,22 +2,28 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import {
   DimensionValue,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useExpenses } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
+import Text from '../ui/AppText';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export interface StatisticsTabScreenProps {
   onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
 }
 
 export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenProps = {}) {
+  const { locale } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const androidBottomInset = Platform.OS === 'android' ? insets.bottom : 0;
   const { expenses } = useExpenses();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -57,7 +63,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
     // Monthly trend
     const byMonth: { [key: string]: number } = {};
     expenses.forEach((expense) => {
-      const monthKey = expense.date.toLocaleDateString('en-US', {
+      const monthKey = expense.date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'short',
       });
@@ -81,7 +87,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
         .slice(0, 6),
       averageExpense: total / (expenses.length || 1),
     };
-  }, [expenses]);
+  }, [expenses, locale]);
 
   const getPercentage = (value: number, total: number) => {
     return total > 0 ? ((value / total) * 100).toFixed(1) : '0';
@@ -95,7 +101,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 140 + androidBottomInset }]}
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
@@ -117,7 +123,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                 <View style={styles.statLabelRow}>
                   <Text style={styles.statLabel}>Total Recorded</Text>
                 </View>
-                <Text style={styles.statValue}>{formatCurrency(stats.total)}</Text>
+                <Text style={styles.statValue}>{formatCurrency(stats.total, '$', locale)}</Text>
                 <Text style={styles.statSubtext}>
                   {stats.count} {stats.count === 1 ? 'expense' : 'expenses'}
                 </Text>
@@ -129,7 +135,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                   <View style={[styles.statusDot, styles.statusDotPaid]} />
                 </View>
                 <Text style={styles.statValue}>
-                  {formatCurrency(stats.paid)}
+                  {formatCurrency(stats.paid, '$', locale)}
                 </Text>
                 <Text style={styles.statSubtext}>{getPercentage(stats.paid, stats.total)}% of total</Text>
               </View>
@@ -142,7 +148,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                   <View style={[styles.statusDot, styles.statusDotPending]} />
                 </View>
                 <Text style={styles.statValue}>
-                  {formatCurrency(stats.pending)}
+                  {formatCurrency(stats.pending, '$', locale)}
                 </Text>
                 <Text style={styles.statSubtext}>{getPercentage(stats.pending, stats.total)}% of total</Text>
               </View>
@@ -151,7 +157,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                 <View style={styles.statLabelRow}>
                   <Text style={styles.statLabel}>Average per Entry</Text>
                 </View>
-                <Text style={styles.statValue}>{formatCurrency(stats.averageExpense)}</Text>
+                <Text style={styles.statValue}>{formatCurrency(stats.averageExpense, '$', locale)}</Text>
                 <Text style={styles.statSubtext}>per expense</Text>
               </View>
             </View>
@@ -171,12 +177,12 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                   </Text>
                 </View>
                 <View style={styles.listItemRight}>
-                  <Text style={styles.listItemTotal}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.listItemTotal}>{formatCurrency(item.total, '$', locale)}</Text>
                   {item.pending > 0 && (
                     <View style={styles.pendingBadgeRow}>
                       <View style={[styles.statusDotMini, { backgroundColor: colors.primary }]} />
                       <Text style={styles.listItemPending}>
-                        {formatCurrency(item.pending)} pending
+                        {formatCurrency(item.pending, '$', locale)} pending
                       </Text>
                     </View>
                   )}
@@ -201,7 +207,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                   </Text>
                 </View>
                 <View style={styles.listItemRight}>
-                  <Text style={styles.listItemTotal}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.listItemTotal}>{formatCurrency(item.total, '$', locale)}</Text>
                   <Text style={styles.listItemPercent}>
                     {getPercentage(item.total, stats.total)}%
                   </Text>
@@ -223,7 +229,7 @@ export default function StatisticsTabScreen({ onScroll }: StatisticsTabScreenPro
                   <View style={styles.trendBarContainer}>
                     <View style={[styles.trendBar, { width: barWidth }]} />
                   </View>
-                  <Text style={styles.trendValue}>{formatCurrency(item.total)}</Text>
+                  <Text style={styles.trendValue}>{formatCurrency(item.total, '$', locale)}</Text>
                 </View>
               );
             })}

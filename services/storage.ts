@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Language } from '../i18n';
 import { ThemeMode } from '../theme';
 import { CreditCard, Expense } from '../types';
 
@@ -8,6 +9,8 @@ const STORAGE_KEYS = {
   LAST_ACTIVE: '@cashya:last_active_at',
   THEME_MODE: '@cashya:theme_mode',
   ACCENT_COLOR: '@cashya:accent_color',
+  ONBOARDING_DONE: '@cashya:onboarding_done',
+  LANGUAGE: '@cashya:language',
 } as const;
 
 export const StorageService = {
@@ -110,6 +113,42 @@ export const StorageService = {
     } catch (error) {
       console.error('Error saving accent color to storage:', error);
       throw error;
+    }
+  },
+
+  async getOnboardingDone(): Promise<boolean> {
+    try {
+      const val = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_DONE);
+      return val === 'true';
+    } catch (error) {
+      console.error('Error reading onboarding flag from storage:', error);
+      return true;
+    }
+  },
+
+  async setOnboardingDone(done: boolean = true): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_DONE, done ? 'true' : 'false');
+    } catch (error) {
+      console.error('Error saving onboarding flag to storage:', error);
+    }
+  },
+
+  async getLanguage(): Promise<Language | null> {
+    try {
+      const val = await AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE);
+      return val === 'en' || val === 'pt' ? val : null;
+    } catch (error) {
+      console.error('Error reading language from storage:', error);
+      return null;
+    }
+  },
+
+  async saveLanguage(language: Language): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.LANGUAGE, language);
+    } catch (error) {
+      console.error('Error saving language to storage:', error);
     }
   },
 

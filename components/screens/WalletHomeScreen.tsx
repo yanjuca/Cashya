@@ -9,7 +9,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -24,6 +23,8 @@ import { Expense, useExpenses } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
+import Text from '../ui/AppText';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export interface WalletHomeScreenProps {
   onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
@@ -52,6 +53,7 @@ const TactileExpenseRow = React.memo(({
   onToggleSelect,
   onEditPress,
 }: TactileExpenseRowProps) => {
+  const { locale } = useLanguage();
   const { colors, isDark } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -247,14 +249,14 @@ const TactileExpenseRow = React.memo(({
                 <View style={styles.expenseSubDetails}>
                   <Text style={styles.expensePerson}>{item.person}</Text>
                   <Text style={styles.expenseDate}>
-                    {item.date.toLocaleDateString('en-US', {
+                    {item.date.toLocaleDateString(locale, {
                       day: '2-digit',
                       month: 'short',
                     })}
                   </Text>
                 </View>
                 <Text style={styles.expenseAmount}>
-                  {formatCurrency(item.amount)}
+                  {formatCurrency(item.amount, '$', locale)}
                 </Text>
               </View>
 
@@ -304,6 +306,7 @@ export default function WalletHomeScreen({
   onToggleSelect: externalOnToggleSelect,
   onStartEditMode: externalOnStartEditMode,
 }: WalletHomeScreenProps = {}) {
+  const { locale } = useLanguage();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -453,29 +456,29 @@ export default function WalletHomeScreen({
           {hasCard && (
             <MetricCard
               label="Available limit"
-              value={formatCurrency(availableLimit)}
-              subtitle={`of ${formatCurrency(cardLimit)}`}
+              value={formatCurrency(availableLimit, '$', locale)}
+              subtitle={`of ${formatCurrency(cardLimit, '$', locale)}`}
               badge={`${percentage}%`}
             />
           )}
 
           <MetricCard
             label="Total spent"
-            value={formatCurrency(totalSpent)}
-            subtitle={hasCard ? `of ${formatCurrency(cardLimit)}` : 'This month'}
+            value={formatCurrency(totalSpent, '$', locale)}
+            subtitle={hasCard ? `of ${formatCurrency(cardLimit, '$', locale)}` : 'This month'}
             badge={hasCard ? `${percentage}%` : undefined}
           />
 
           <View style={styles.splitRow}>
             <MetricCard
               label="Pending"
-              value={formatCurrency(pending)}
+              value={formatCurrency(pending, '$', locale)}
               variant="compact"
             />
             <View style={{ width: 12 }} />
             <MetricCard
               label="Paid"
-              value={formatCurrency(paid)}
+              value={formatCurrency(paid, '$', locale)}
               variant="compact"
             />
           </View>

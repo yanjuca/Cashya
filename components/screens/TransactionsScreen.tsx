@@ -9,12 +9,11 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   UIManager,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -28,6 +27,9 @@ import { formatCurrency, formatMonthYear, toDateKey } from '../../utils/formatte
 import CalendarView from './CalendarView';
 import EditExpenseScreen from './EditExpenseScreen';
 import TransactionDetailsModal from './TransactionDetailsModal';
+import Text from '../ui/AppText';
+import TextInput from '../ui/AppTextInput';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export type ViewMode = 'list' | 'calendar';
 
@@ -43,6 +45,9 @@ export default function TransactionsScreen({
   onCalendarGestureActive,
   onScroll,
 }: TransactionsScreenProps = {}) {
+  const { locale } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const androidBottomInset = Platform.OS === 'android' ? insets.bottom : 0;
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { expenses, togglePaid } = useExpenses();
@@ -266,6 +271,7 @@ export default function TransactionsScreen({
     onPress: () => void;
     onLongPress: () => void;
   }) => {
+  const { locale } = useLanguage();
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
     const handlePressIn = () => {
@@ -318,10 +324,10 @@ export default function TransactionsScreen({
                   <View style={styles.cardSubDetails}>
                     <Text style={styles.person}>{item.person}</Text>
                     <Text style={styles.date}>
-                      {item.date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
+                      {item.date.toLocaleDateString(locale, { day: '2-digit', month: 'short' })}
                     </Text>
                   </View>
-                  <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+                  <Text style={styles.amount}>{formatCurrency(item.amount, '$', locale)}</Text>
                 </View>
 
                 {item.tags.length > 0 && (
@@ -354,6 +360,7 @@ export default function TransactionsScreen({
   };
 
   const AnimatedGroupCard = React.memo(({ group }: { group: ExpenseGroup }) => {
+  const { locale } = useLanguage();
     const isExpanded = expandedGroupKeys.has(group.key);
 
     const animValue = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
@@ -420,7 +427,7 @@ export default function TransactionsScreen({
                         {group.expenses.length} {group.expenses.length === 1 ? 'TRANSACTION' : 'TRANSACTIONS'}
                       </Text>
                     </View>
-                    <Text style={styles.groupAmount}>{formatCurrency(group.totalAmount)}</Text>
+                    <Text style={styles.groupAmount}>{formatCurrency(group.totalAmount, '$', locale)}</Text>
                   </View>
                 </View>
 
@@ -508,7 +515,7 @@ export default function TransactionsScreen({
       {viewMode === 'list' && (
         <ScrollView
           style={styles.contentFlex}
-          contentContainerStyle={styles.scrollContainerContent}
+          contentContainerStyle={[styles.scrollContainerContent, { paddingBottom: 150 + androidBottomInset }]}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -632,7 +639,7 @@ export default function TransactionsScreen({
       {viewMode === 'calendar' && (
         <ScrollView
           style={styles.contentFlex}
-          contentContainerStyle={styles.scrollContainerContent}
+          contentContainerStyle={[styles.scrollContainerContent, { paddingBottom: 150 + androidBottomInset }]}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -651,7 +658,7 @@ export default function TransactionsScreen({
                 activeOpacity={0.7}
                 style={styles.monthNavTitleBtn}
               >
-                <Text style={styles.monthNavTitle}>{formatMonthYear(currentMonth)}</Text>
+                <Text style={styles.monthNavTitle}>{formatMonthYear(currentMonth, locale)}</Text>
                 <Text style={styles.monthNavDropdownGlyph}>{showMonthPicker ? '▲' : '▼'}</Text>
               </TouchableOpacity>
 
@@ -674,13 +681,13 @@ export default function TransactionsScreen({
             <View style={styles.calendarSummaryBar}>
               <View style={styles.summaryCol}>
                 <Text style={styles.summaryLabel}>MONTH TOTAL</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(totalCalendarMonth)}</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(totalCalendarMonth, '$', locale)}</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryCol}>
                 <Text style={styles.summaryLabel}>PENDING</Text>
                 <Text style={[styles.summaryValue, { color: colors.primary }]}>
-                  {formatCurrency(pendingCalendarMonth)}
+                  {formatCurrency(pendingCalendarMonth, '$', locale)}
                 </Text>
               </View>
             </View>
@@ -707,7 +714,7 @@ export default function TransactionsScreen({
             {selectedDate && (
               <View style={styles.dateFilterChipRow}>
                 <Text style={styles.dateFilterChipText}>
-                  Showing: {selectedDate.toLocaleDateString('en-US', { day: '2-digit', month: 'long' })}
+                  Showing: {selectedDate.toLocaleDateString(locale, { day: '2-digit', month: 'long' })}
                 </Text>
                 <TouchableOpacity onPress={() => setSelectedDate(null)}>
                   <Ionicons name="close-circle" size={16} color={colors.primary} />

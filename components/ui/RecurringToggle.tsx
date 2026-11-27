@@ -6,13 +6,13 @@ import {
   Easing,
   Platform,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
+import Text from './AppText';
+import TextInput from './AppTextInput';
 
 interface RecurringToggleProps {
   value: boolean;

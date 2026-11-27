@@ -10,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -18,6 +17,7 @@ import { CreditCard } from '../../contexts/CardsContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import CreditCardItem from './CreditCardItem';
+import Text from '../ui/AppText';
 
 interface CardsCarouselProps {
   cards: CreditCard[];

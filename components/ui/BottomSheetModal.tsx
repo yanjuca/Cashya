@@ -13,13 +13,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
+import Text from './AppText';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

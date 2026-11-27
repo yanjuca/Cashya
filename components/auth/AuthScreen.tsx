@@ -14,7 +14,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   TextInput,
   TextInputProps,
   TouchableOpacity,
@@ -26,6 +25,8 @@ import { AuthMode, useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { DEMO_MODE, DEMO_RESET_CODE } from '../../services/auth';
 import { BORDER_RADIUS, FONTS, hexToRgba, ThemeColors } from '../../theme';
+import Text from '../ui/AppText';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 type TextInputInstance = React.ComponentRef<typeof TextInput>;
 
@@ -130,6 +131,7 @@ function AuthField({
   editable = true,
 }: AuthFieldProps) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
@@ -155,7 +157,7 @@ function AuthField({
           style={[styles.fieldInput, code && styles.fieldInputCode]}
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={placeholder ? t(placeholder) : undefined}
           placeholderTextColor={colors.textMuted}
           secureTextEntry={secure && hidden}
           keyboardType={keyboardType}

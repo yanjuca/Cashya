@@ -5,7 +5,6 @@ import {
   Dimensions,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Expense } from '../../contexts/ExpensesContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
 import { toDateKey } from '../../utils/formatters';
+import Text from '../ui/AppText';
 
 interface CalendarViewProps {
   currentMonth: Date;

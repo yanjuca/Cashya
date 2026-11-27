@@ -3,10 +3,13 @@ import { Stack } from 'expo-router';
 import { ActivityIndicator, Platform, UIManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AuthScreen from '../components/auth/AuthScreen';
+import OnboardingScreen from '../components/onboarding/OnboardingScreen';
 import { AlertProvider } from '../contexts/AlertContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { CardsProvider } from '../contexts/CardsContext';
 import { ExpensesProvider } from '../contexts/ExpensesContext';
+import { LanguageProvider } from '../contexts/LanguageContext';
+import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { useFonts } from '../hooks/useFonts';
 import { COLORS } from '../theme';
@@ -42,6 +45,7 @@ function AppShell() {
       >
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <OnboardingScreen />
       <AuthScreen />
     </>
   );
@@ -56,17 +60,21 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AlertProvider>
-          <AuthProvider>
-            <ExpensesProvider>
-              <CardsProvider>
-                <AppShell />
-              </CardsProvider>
-            </ExpensesProvider>
-          </AuthProvider>
-        </AlertProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AlertProvider>
+            <AuthProvider>
+              <ExpensesProvider>
+                <CardsProvider>
+                  <OnboardingProvider>
+                    <AppShell />
+                  </OnboardingProvider>
+                </CardsProvider>
+              </ExpensesProvider>
+            </AuthProvider>
+          </AlertProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </GestureHandlerRootView>
   );
 }

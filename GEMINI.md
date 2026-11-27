@@ -43,9 +43,12 @@ To preserve architectural integrity and avoid visual or technical hallucinations
      - `FONTS.bold` (`'DMSans_700Bold'`): High-emphasis badges, button labels.
    - Always provide fallback when using dot fonts: `fontFamily: FONTS.ndot || FONTS.system`.
 
-6. **STRICT English UI & Copy Standard**:
-   - ❌ NEVER write Portuguese strings, labels, status text (`PAGO`, `PENDENTE`, `SALVAR`), or alert messages in UI components.
-   - ✅ ALL user-facing copy, section headers, button titles, input placeholders, category names, system dialogs, and date formatting (`toLocaleDateString('en-US', ...)`) MUST strictly be in **English**.
+6. **English Source Copy + Portuguese Translation**:
+   - ✅ Write ALL user-facing copy in **English** directly in the components (section headers, button titles, placeholders, category names, system dialogs). English is the source language.
+   - ✅ Portuguese is provided by the `LanguageContext` (English / Português, chosen in Settings). Every new user-facing string MUST get a Portuguese entry in `i18n/pt.ts` (key = the exact English string). Strings with variables need a pattern in `PT_PATTERNS`.
+   - ✅ Import `Text` from `components/ui/AppText` and `TextInput` from `components/ui/AppTextInput` (never from `react-native`), so strings are translated automatically.
+   - ✅ Never hardcode `'en-US'`. Get `locale` from `useLanguage()` and pass it to `toLocaleDateString`, `formatCurrency`, `formatMonthYear` and `formatDate`.
+   - ❌ NEVER write Portuguese strings directly in UI components.
 
 ---
 

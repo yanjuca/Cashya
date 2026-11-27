@@ -7,13 +7,13 @@ import {
   Platform,
   StyleProp,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { BORDER_RADIUS, FONTS, ThemeColors } from '../../theme';
+import Text from './AppText';
 
 interface ToggleRowProps {
   icon: keyof typeof Ionicons.glyphMap;
