@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language } from '../i18n';
 import { ThemeMode } from '../theme';
 import { CreditCard, Expense } from '../types';
+import { normalizeCardType } from './api/mappers';
 
 const STORAGE_KEYS = {
   EXPENSES: '@cashya:expenses',
@@ -59,7 +60,8 @@ export const StorageService = {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.CARDS);
       if (!data) return [];
-      return JSON.parse(data);
+      const parsed: CreditCard[] = JSON.parse(data);
+      return parsed.map((card) => ({ ...card, type: normalizeCardType(card.type) }));
     } catch (error) {
       console.error('Error reading cards from storage:', error);
       return [];
