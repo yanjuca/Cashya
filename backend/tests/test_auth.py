@@ -1,3 +1,6 @@
+import re
+from types import SimpleNamespace
+
 from tests.conftest import API, bearer, register
 
 
@@ -89,3 +92,61 @@ def test_delete_account_requires_password(client):
     assert client.request("DELETE", f"{API}/users/me", json={"password": "nope"}, headers=bearer(auth)).status_code == 403
     assert client.request("DELETE", f"{API}/users/me", json={"password": "password123"}, headers=bearer(auth)).status_code == 200
     assert client.post(f"{API}/auth/login", json={"email": "bye@example.com", "password": "password123"}).status_code == 401
+
+
+def test_password_reset_code_changes_password_and_is_single_use(client, monkeypatch):
+    register(client, email="reset@example.com")
+    sent = []
+    monkeypatch.setattr("app.routers.auth.settings", SimpleNamespace(email_configured=True))
+    monkeypatch.setattr("app.routers.auth.send_email_best_effort", lambda *args: sent.append(args))
+
+    requested = client.post(f"{API}/auth/password-reset/request", json={"email": "reset@example.com"})
+    assert requested.status_code == 200
+    assert requested.json()["success"] is True
+    code = re.search(r"code is (\d{6})", sent[-1][2]).group(1)
+
+    wrong_code = "000001" if code != "000001" else "000002"
+    assert client.post(
+        f"{API}/auth/password-reset/confirm",
+        json={"email": "reset@example.com", "code": wrong_code, "newPassword": "changed123"},
+    ).status_code == 400
+    confirmed = client.post(
+        f"{API}/auth/password-reset/confirm",
+        json={"email": "reset@example.com", "code": code, "newPassword": "changed123"},
+    )
+    assert confirmed.status_code == 200
+    assert client.post(
+        f"{API}/auth/password-reset/confirm",
+        json={"email": "reset@example.com", "code": code, "newPassword": "changed456"},
+    ).status_code == 400
+    assert client.post(
+        f"{API}/auth/login",
+        json={"email": "reset@example.com", "password": "changed123"},
+    ).status_code == 200
+
+
+def test_email_verification_and_preferences(client, monkeypatch):
+    auth = register(client, email="verify@example.com")
+    sent = []
+    monkeypatch.setattr("app.routers.auth.settings", SimpleNamespace(email_configured=True))
+    monkeypatch.setattr("app.routers.auth.send_email_best_effort", lambda *args: sent.append(args))
+
+    requested = client.post(f"{API}/auth/email-verification/request", headers=bearer(auth))
+    assert requested.status_code == 200
+    code = re.search(r"code is (\d{6})", sent[-1][2]).group(1)
+    verified = client.post(
+        f"{API}/auth/email-verification/confirm",
+        json={"code": code},
+        headers=bearer(auth),
+    )
+    assert verified.status_code == 200
+    assert client.get(f"{API}/users/me", headers=bearer(auth)).json()["data"]["emailVerified"] is True
+
+    updated = client.patch(
+        f"{API}/users/me/email-preferences",
+        json={"emailNotificationsEnabled": False, "emailReportsEnabled": False},
+        headers=bearer(auth),
+    )
+    assert updated.status_code == 200
+    assert updated.json()["data"]["emailNotificationsEnabled"] is False
+    assert updated.json()["data"]["emailReportsEnabled"] is False
