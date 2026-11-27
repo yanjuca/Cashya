@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 import {
   AuthResult,
   AuthService,
@@ -20,6 +21,19 @@ import {
   BiometricService,
   NO_BIOMETRICS,
 } from '../services/biometrics';
+import { StorageService } from '../services/storage';
+import { SyncService } from '../services/sync';
+
+/** Link this device's data to the account that just signed in, then sync in the background. */
+async function startCloudSync(account: AuthUser): Promise<void> {
+  try {
+    const [expenses, cards] = await Promise.all([StorageService.getExpenses(), StorageService.getCards()]);
+    await SyncService.linkAccount(account.id, { expenses, cards });
+  } catch (error) {
+    console.error('Could not link local data to the account:', error);
+  }
+  SyncService.flush();
+}
 
 export type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
@@ -70,8 +84,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(account);
     setPrefillEmail(account.email);
     setVisible(false);
+    SyncService.flush();
     return true;
   }, []);
+
+  // Coming back to the app: send what is pending and pick up changes made on other devices.
+  useEffect(() => {
+    if (!user) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') SyncService.flush();
+    });
+    return () => subscription.remove();
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,10 +103,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async function bootstrap() {
       let shouldPrompt = false;
       try {
-        const [summary, info, pref] = await Promise.all([
+        const [summary, info, pref, hasSession] = await Promise.all([
           AuthService.getAccountSummary(),
           BiometricService.getInfo(),
           BiometricService.getPreference(),
+          AuthService.hasSession(),
         ]);
         if (cancelled) return;
         setBiometricInfo(info);
@@ -93,7 +118,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setMode('login');
           setLocked(true);
           setVisible(true);
-          shouldPrompt = info.available && pref === 'enabled';
+          // Biometrics only reopen an existing session; after a logout the password is needed.
+          shouldPrompt = info.available && pref === 'enabled' && hasSession;
         }
       } catch (err) {
         console.error('Failed to load account state:', err);
@@ -150,6 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setHasAccount(true);
       setPrefillEmail(result.data.email);
       setVisible(false);
+      startCloudSync(result.data);
     }
     return result;
   }, []);
@@ -158,8 +185,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const result = await AuthService.login(payload);
     if (result.success && result.data) {
       setUser(result.data);
+      setHasAccount(true);
       setPrefillEmail(result.data.email);
       setVisible(false);
+      startCloudSync(result.data);
     }
     return result;
   }, []);
@@ -169,19 +198,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMode('login');
     setLocked(true);
     setVisible(true);
-    if (biometricInfo.available && biometricPref === 'enabled') {
-      setTimeout(() => {
-        unlockWithBiometrics();
-      }, 350);
-    }
-  }, [biometricInfo, biometricPref, unlockWithBiometrics]);
+    // Send anything still pending while the session is valid, then end it. Data stays on the device.
+    SyncService.flush()
+      .catch(() => undefined)
+      .finally(() => {
+        AuthService.logout().catch((error) => console.error('Error during logout:', error));
+      });
+  }, []);
 
   const removeAccount = useCallback(async (): Promise<AuthResult> => {
     if (!user) {
       return { success: false, message: 'Log in to remove your account.' };
     }
+    await SyncService.flush().catch(() => undefined);
     const result = await AuthService.removeAccounts();
     if (result.success) {
+      // This device stops syncing; the cloud account and its data are left untouched.
+      await SyncService.unlink();
       await BiometricService.clearPreference();
       setBiometricPref(null);
       setUser(null);
