@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -10,18 +11,33 @@ from app.core.config import settings
 from app.core.database import create_tables
 from app.core.hardening import apply_security_headers, auth_rate_limiter, client_ip, client_version_allowed, global_rate_limiter, signature_verifier
 from app.routers import auth, cards, dashboard, expenses, groups, inbox, statistics, sync, users
+from app.services.email_scheduler import run_email_scheduler
 
 logger = logging.getLogger("cashya")
 
 API_PREFIX = settings.api_v1_prefix
-RATE_LIMITED_PATHS = {f"{API_PREFIX}/auth/login", f"{API_PREFIX}/auth/register", f"{API_PREFIX}/auth/refresh"}
+RATE_LIMITED_PATHS = {
+    f"{API_PREFIX}/auth/login",
+    f"{API_PREFIX}/auth/register",
+    f"{API_PREFIX}/auth/refresh",
+    f"{API_PREFIX}/auth/password-reset/request",
+    f"{API_PREFIX}/auth/password-reset/confirm",
+    f"{API_PREFIX}/auth/email-verification/request",
+    f"{API_PREFIX}/auth/email-verification/confirm",
+}
 PUBLIC_PATHS = {f"{API_PREFIX}/health", f"{API_PREFIX}/openapi.json"}
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     create_tables()
+    scheduler_task = asyncio.create_task(run_email_scheduler())
     yield
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

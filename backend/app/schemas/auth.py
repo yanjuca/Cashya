@@ -45,8 +45,38 @@ class UserRead(CamelModel):
     email: EmailStr
     name: str
     avatar_url: str | None = None
+    email_verified: bool
+    email_notifications_enabled: bool
+    email_reports_enabled: bool
     created_at: datetime
     updated_at: datetime | None = None
+
+
+class PasswordResetRequest(CamelModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(CamelModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=PASSWORD_MIN, max_length=PASSWORD_MAX)
+
+    _password = field_validator("new_password")(validate_password_strength)
+
+
+class EmailVerificationConfirm(CamelModel):
+    code: str = Field(pattern=r"^\d{6}$")
+
+
+class EmailPreferencesPatch(CamelModel):
+    email_notifications_enabled: bool | None = None
+    email_reports_enabled: bool | None = None
+
+
+class EmailPreferencesRead(CamelModel):
+    email_verified: bool
+    email_notifications_enabled: bool
+    email_reports_enabled: bool
 
 
 class UserUpdate(CamelModel):
