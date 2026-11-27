@@ -97,7 +97,7 @@ def request_password_reset(
     db: Session = Depends(get_db),
 ) -> dict:
     user = find_user_by_email(db, data.email)
-    if user is not None and settings.email_configured:
+    if user is not None and (settings.email_configured or settings.email_console_fallback):
         code = create_email_challenge(db, user, "password_reset")
         subject, body = password_reset_email(user.name, code)
         background_tasks.add_task(send_email_best_effort, data.email, subject, body)
@@ -127,7 +127,7 @@ def request_email_verification(
 ) -> dict:
     if user.email_verified:
         return envelope(message="Email address is already verified")
-    if not settings.email_configured:
+    if not (settings.email_configured or settings.email_console_fallback):
         raise HTTPException(status_code=503, detail="Email delivery is not configured")
     code = create_email_challenge(db, user, "verify_email")
     subject, body = verification_email(user.name, code)

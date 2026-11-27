@@ -47,6 +47,9 @@ def _authenticate(client: smtplib.SMTP | smtplib.SMTP_SSL) -> None:
 
 
 def send_email_best_effort(recipient: str, subject: str, body: str) -> None:
+    if getattr(settings, "email_console_fallback", False):
+        logger.warning("SMTP not configured (development) - email to %s\nSubject: %s\n\n%s", recipient, subject, body)
+        return
     try:
         send_email(recipient, subject, body)
     except (smtplib.SMTPException, OSError, RuntimeError):
