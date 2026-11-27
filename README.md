@@ -748,7 +748,3 @@ O CASH foi desenvolvido em equipe por **8 integrantes**:
 Projeto criado por [Yan Jucá](https://github.com/yanjuca) e desenvolvido em equipe. A lista completa de pessoas que contribuíram está na [aba de contribuidores](https://github.com/yanjuca/Cashya/graphs/contributors).
 
 Distribuído sob a licença **MIT**.
-
-<div align="center">
-  <sub>Feito com ❤️, React Native, Expo e FastAPI.</sub>
-</div>
