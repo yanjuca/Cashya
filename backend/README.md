@@ -391,14 +391,41 @@ alembic revision --autogenerate -m "describe schema change"
 alembic upgrade head
 ```
 
-## Testes
+## Testes unitários
+
+A suíte está dividida entre testes de API (requisições HTTP e contrato dos endpoints) e testes unitários dos serviços, regras de negócio, schemas, serialização, segurança e sincronização.
+
+Os testes unitários utilizam um banco SQLite em memória, isolado por teste. O argumento `--confcutdir=tests/unit` impede que a configuração dos testes de API em `tests/conftest.py` seja carregada durante a execução isolada dos testes unitários.
+
+**Executar somente os testes unitários:**
 
 ```powershell
-cd cashya-api
-pytest -q
+python -m pytest --confcutdir=tests/unit -q tests/unit
 ```
 
-Os testes cobrem autenticação e perfil, cartões e carteira, despesas (filtros, calendário, soft delete, idempotência), sincronização (batch, LWW, backup) e grupos.
+**Executar toda a suíte (testes unitários + testes de API):**
+
+```powershell
+python -m pytest -q
+```
+
+**Verificar a cobertura de linhas e ramificações:**
+
+Instale a ferramenta de cobertura:
+
+```powershell
+python -m pip install pytest-cov
+```
+
+Execute:
+
+```powershell
+python -m pytest --confcutdir=tests/unit tests/unit --cov=app.services --cov=app.core --cov=app.schemas --cov=app.models --cov-branch --cov-report=term-missing --cov-report=html
+```
+
+O relatório HTML é gerado em `htmlcov/index.html`.
+
+A cobertura considera os módulos `services`, `core`, `schemas` e `models`. Os resultados devem ser analisados em conjunto com a qualidade dos casos de teste e das verificações realizadas.
 
 ## Segurança e produção
 
