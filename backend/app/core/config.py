@@ -116,6 +116,11 @@ class Settings(BaseSettings):
     def email_configured(self) -> bool:
         return bool(self.smtp_host.strip() and self.smtp_from_email.strip())
 
+    @property
+    def email_console_fallback(self) -> bool:
+        """Development without SMTP: reset/verification emails are written to the API log instead of sent."""
+        return not self.email_configured and self.environment == "development"
+
 
 @lru_cache
 def get_settings() -> Settings:

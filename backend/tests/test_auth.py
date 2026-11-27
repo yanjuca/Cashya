@@ -125,6 +125,21 @@ def test_password_reset_code_changes_password_and_is_single_use(client, monkeypa
     ).status_code == 200
 
 
+def test_password_reset_code_goes_to_the_log_in_development_without_smtp(client, monkeypatch, caplog):
+    register(client, email="devreset@example.com")
+    dev = SimpleNamespace(email_configured=False, email_console_fallback=True)
+    monkeypatch.setattr("app.routers.auth.settings", dev)
+    monkeypatch.setattr("app.services.mailer.settings", dev)
+
+    with caplog.at_level("WARNING", logger="cashya.email"):
+        assert client.post(f"{API}/auth/password-reset/request", json={"email": "devreset@example.com"}).status_code == 200
+    code = re.search(r"code is (\d{6})", caplog.text).group(1)
+    assert client.post(
+        f"{API}/auth/password-reset/confirm",
+        json={"email": "devreset@example.com", "code": code, "newPassword": "changed123"},
+    ).status_code == 200
+
+
 def test_email_verification_and_preferences(client, monkeypatch):
     auth = register(client, email="verify@example.com")
     sent = []
