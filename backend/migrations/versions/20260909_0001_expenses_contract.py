@@ -19,6 +19,15 @@ def upgrade() -> None:
     inspector = sa.inspect(bind)
     tables = set(inspector.get_table_names())
 
+    if "users" not in tables and "transactions" not in tables:
+        # Brand-new database. The base tables never had a migration of their own (older installs got them from
+        # the app's startup), so create the current schema here; every later revision only adds what is missing.
+        from app import models  # noqa: F401
+        from app.core.database import Base
+
+        Base.metadata.create_all(bind=bind)
+        return
+
     if "transactions" in tables and "expenses" not in tables:
         op.rename_table("transactions", "expenses")
         tables.remove("transactions")
