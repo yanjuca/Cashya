@@ -50,7 +50,8 @@ Aplicativo mobile (Expo / React Native) e API (FastAPI) no mesmo repositório.
 13. [Build e distribuição (EAS)](#-build-e-distribuição-eas)
 14. [Solução de problemas](#-solução-de-problemas)
 15. [Documentação complementar](#-documentação-complementar)
-16. [Licença e créditos](#-licença-e-créditos)
+16. [Integrantes do grupo](#-integrantes-do-grupo)
+17. [Licença e créditos](#-licença-e-créditos)
 
 ---
 
@@ -721,6 +722,23 @@ eas build -p android --profile production   # build de produção (Play Store)
 | [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | Design system e tokens de interface. |
 | [`docs/BACKEND_SPEC.md`](docs/BACKEND_SPEC.md) | Especificação original do contrato da API. |
 | <http://localhost:8000/docs> | Swagger interativo (com a API rodando). |
+
+---
+
+## 👥 Integrantes do grupo
+
+O CASH foi desenvolvido em equipe por **8 integrantes**:
+
+| Nº | Integrante | RA |
+| :---: | :--- | :---: |
+| 1 | Anallyce Guedes Oliveira | 12824128668 |
+| 2 | Gabriela Maria Espíndola Galindo | 1282317660 |
+| 3 | João Paulo Higino Ferreira | 1282322793 |
+| 4 | Kalyel Costa Lira da Cunha | 12823125478 |
+| 5 | Maria Eduarda Evangelista de Carvalho | 12823212927 |
+| 6 | Mateus Emanoel Soares Montenegro | 12823213410 |
+| 7 | Yan Carneiro Jucá | 12823126993 |
+| 8 | Yudle Blenda Lopes de Lima | 12824223999 |
 
 ---
 
