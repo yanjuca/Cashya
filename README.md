@@ -717,6 +717,7 @@ eas build -p android --profile production   # build de produção (Play Store)
 
 | Documento | Conteúdo |
 | :--- | :--- |
+| [`docs/Cash_Documentacao_Tecnica.pdf`](docs/Cash_Documentacao_Tecnica.pdf) | Documentação técnica completa do CASH (app e API) em PDF, no formato ABNT. |
 | [`backend/README.md`](backend/README.md) | Documentação técnica completa da API: instalação, variáveis, endpoints, segurança e migrações. |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitetura do aplicativo. |
 | [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | Design system e tokens de interface. |
